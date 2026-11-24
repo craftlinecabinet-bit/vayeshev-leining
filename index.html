@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vayeshev Leining Trainer</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1d4a87">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a calm, exact study partner — the tikkun on the shtender, not a game
+   IDEA: a tikkun korim — the fully marked text beside the bare scroll column
+   PICTURE: the live practice card: the scroll line, large, with the answer under it
+   COLOUR and TYPE: white and ink, one field of techeiles blue; Frank Ruhl Libre for scroll letters, Taamey D for nikkud and trop, Source Sans 3 for English
+   LAYOUT: one column up to 760px; a blue band with tabs on top; the card fills the first screen */
+@font-face{font-family:"Taamey D";src:url("Taamey_D.woff2") format("woff2");font-display:swap}
+:root{color-scheme:light dark;
+  --bg:#ffffff;--ink:#15181d;--muted:#5b6470;
+  --line:#e2e6ec;--soft:#f1f5fb;--blue:#1d4a87;
+  --field:#1d4a87;--fieldink:#ffffff;
+  --ok:#0d7a3c;--okbg:#e7f6ed;--bad:#b3261e;--badbg:#fcebe9;
+  --c0:#1d4a87;--c2:#0b7480;--c3:#8a5300;--c4:#9b2a73;--c9:#5b6470;
+  --he:"Taamey D","SBL Hebrew","Times New Roman",serif;--scroll:"Frank Ruhl Libre","Taamey D",serif}
+@supports (color:light-dark(#000,#fff)){:root{
+  --bg:light-dark(#ffffff,#0d1218);--ink:light-dark(#15181d,#e8ecf2);--muted:light-dark(#5b6470,#9ba5b3);
+  --line:light-dark(#e2e6ec,#243041);--soft:light-dark(#f1f5fb,#151e2a);--blue:light-dark(#1d4a87,#7aa7e6);
+  --field:light-dark(#1d4a87,#122848);--fieldink:#ffffff;
+  --ok:light-dark(#0d7a3c,#5fd394);--okbg:light-dark(#e7f6ed,#0f2c1d);--bad:light-dark(#b3261e,#ff8f86);--badbg:light-dark(#fcebe9,#341614);
+  --c0:light-dark(#1d4a87,#86b2ef);--c2:light-dark(#0b7480,#4fc7d3);--c3:light-dark(#8a5300,#e3a650);--c4:light-dark(#9b2a73,#e07ab8);--c9:light-dark(#5b6470,#9ba5b3);
+  --he:"Taamey D","SBL Hebrew","Times New Roman",serif;--scroll:"Frank Ruhl Libre","Taamey D",serif}}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Source Sans 3",system-ui,sans-serif;overflow-x:clip}
+header{background:var(--field);color:var(--fieldink)}
+.top{max-width:760px;margin:0 auto;padding:18px max(4vw,14px) 0;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.top h1{margin:0;font-size:clamp(26px,6vw,36px);line-height:1.05;font-weight:700;letter-spacing:-.01em}
+.top h1 .he{font-family:var(--he);font-weight:400;margin-inline-start:.35em;opacity:.95}
+.top .sub{font-size:14px;opacity:.85}
+.tabs{max-width:760px;margin:0 auto;display:flex;gap:2px;overflow-x:auto;padding:10px max(4vw,10px) 0;scrollbar-width:none}
+.tabs a{flex:none;color:var(--fieldink);text-decoration:none;padding:10px 12px 11px;font-size:16px;border-radius:10px 10px 0 0;font-weight:600;opacity:.8;min-height:44px}
+.tabs a.on{background:var(--bg);color:var(--ink);opacity:1}
+main{max-width:760px;margin:0 auto}
+.band{padding:18px max(4vw,14px) 40px}
+h2{font-size:clamp(22px,4.5vw,30px);line-height:1.1;margin:.3em 0 .4em;text-wrap:balance}
+h3{font-size:18px;margin:1.6em 0 .5em}
+.muted{color:var(--muted)}
+.he{font-family:var(--he);font-size:25px;line-height:2;direction:rtl}
+.he.big{font-size:30px;line-height:2.1}.he.huge{font-size:42px;line-height:1.7}.he.inl{font-size:1.25em;line-height:1}
+.scroll{overflow-x:auto;scrollbar-width:none}
+.stats{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:15px;color:var(--muted);margin-bottom:10px}.stats b{color:var(--ink)}
+.focus{display:flex;gap:6px;padding-bottom:6px;margin-bottom:10px}
+.chip{flex:none;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:8px 14px;font:inherit;font-size:15px;min-height:40px;cursor:pointer}
+.chip.on{background:var(--field);border-color:var(--field);color:var(--fieldink)}
+.card{background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 1px 0 var(--line),0 10px 30px -18px rgba(20,40,80,.35)}
+.kicker{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin-bottom:6px}
+.kicker span:first-child{color:var(--blue);font-weight:700}
+.q{font-size:18px;font-weight:600;margin:.4em 0 .6em}
+.ctx{background:var(--soft);border-radius:12px;padding:10px 14px;font-family:var(--scroll);font-weight:700;font-size:26px;line-height:1.9}
+.ctx .tgt,.scrolltext .tgt{background:#ffe08a;background:light-dark(#ffe08a,#5a4400);border-radius:6px;padding:0 4px;box-decoration-break:clone}
+.scrolltext{font-family:var(--scroll);font-weight:700;font-size:30px;line-height:2;background:var(--soft);border-radius:12px;padding:14px 16px;margin:6px 0 12px}
+.ans{margin:10px 0 4px}
+.ans.he,.ans{font-size:30px}
+.opts{display:grid;gap:8px;margin-top:6px}
+.opt{display:flex;align-items:center;gap:12px;text-align:start;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:10px 14px;font:inherit;font-size:17px;min-height:52px;cursor:pointer}
+.opt:hover:not([disabled]){border-color:var(--blue)}
+.opt .k{flex:none;width:26px;height:26px;border-radius:50%;background:var(--soft);display:grid;place-items:center;font-size:13px;font-weight:700;color:var(--muted)}
+.opt .o{flex:1;display:flex;flex-direction:column;gap:2px}.opt small{color:var(--muted);font-size:13px}
+.he-opts .opt .o{font-family:var(--he);font-size:28px;line-height:1.6;align-items:flex-end}
+.opt.right{border-color:var(--ok);background:var(--okbg)}.opt.wrong{border-color:var(--bad);background:var(--badbg)}
+.gl{font-family:var(--he);font-size:26px;display:inline-block;min-width:1.6em;text-align:center;line-height:1.2}
+.fb{margin-top:14px;border-radius:12px;padding:12px 14px}
+.fb.ok{background:var(--okbg)}.fb.bad{background:var(--badbg)}
+.verdict{font-weight:700;font-size:18px}.fb.ok .verdict{color:var(--ok)}.fb.bad .verdict{color:var(--bad)}
+.fb p{margin:.4em 0}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}.row.between{justify-content:space-between;margin-top:0}
+.btn{border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;font-size:16px;min-height:44px;cursor:pointer}
+.btn.primary{background:var(--field);border-color:var(--field);color:var(--fieldink)}
+.btn.sm{min-height:36px;padding:6px 10px;font-size:14px}.btn.big{font-size:20px;padding:14px 28px;min-height:60px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn.file{display:inline-flex;align-items:center}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.story{font-size:15px;color:var(--muted);border-inline-start:3px solid var(--blue);padding-inline-start:10px;margin:8px 0}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);border:1.5px solid var(--line);border-radius:10px;overflow:hidden;width:fit-content;max-width:100%;margin:8px 0}
+.seg button{border:0;background:var(--bg);color:var(--ink);font:inherit;font-size:15px;font-weight:600;padding:9px 12px;white-space:nowrap;min-height:42px;cursor:pointer;border-inline-end:1px solid var(--line)}
+.seg button:last-child{border-inline-end:0}.seg button.on{background:var(--field);color:var(--fieldink)}
+.steps{margin:8px 0;padding-inline-start:22px;color:var(--muted);font-size:15px}
+.w{display:inline-flex;flex-direction:column;align-items:center;cursor:pointer;border-radius:6px;padding:0 2px}
+.w small,.tw small{font-family:"Source Sans 3",sans-serif;font-size:11px;line-height:1.1;color:var(--muted);direction:ltr;white-space:nowrap;margin-top:-4px}
+.c0{color:var(--c0)}.c2{color:var(--c2)}.c3{color:var(--c3)}.c4{color:var(--c4)}.c9{color:inherit}
+.bar{display:inline-block;width:1px;height:1.1em;background:var(--line);vertical-align:middle;margin:0 2px}
+.tl{font-size:15px;color:var(--muted);direction:ltr}.tl b{color:var(--ink);font-weight:700}.tl sup{font-size:.7em}
+.tapwords{display:flex;flex-wrap:wrap;gap:4px 6px;direction:rtl}
+.tw{font-family:var(--he);font-size:28px;line-height:1.7;background:var(--bg);border:1.5px solid transparent;border-radius:8px;padding:0 4px;display:inline-flex;flex-direction:column;align-items:center;cursor:pointer}
+.tw.miss{border-color:var(--bad);background:var(--badbg)}
+.grades{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
+#cgrade{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g0{border-color:var(--bad);color:var(--bad)}.g1{border-color:var(--c3);color:var(--c3)}.g2{border-color:var(--ok);color:var(--ok)}
+.hl{color:var(--bad);background:var(--badbg);border-radius:4px}
+.done h2{margin-top:0}
+.toggles{display:flex;flex-wrap:wrap;gap:8px 16px;margin:6px 0 10px;font-size:15px}.toggles input{width:18px;height:18px;vertical-align:-3px}
+.aliyah{margin-top:18px}
+.tikkun .pv{display:grid;grid-template-columns:56px minmax(0,1fr);gap:4px 8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.vn{font-size:13px;color:var(--muted);padding-top:12px}
+.mini{border:1px solid var(--line);background:var(--bg);color:var(--blue);border-radius:6px;font-size:12px;padding:2px 6px;cursor:pointer;min-height:28px}
+.tikkun .tl{grid-column:2}
+.tikkun.is-scroll .he{font-family:var(--scroll);font-weight:700;font-size:28px}
+.w.tr{text-decoration:underline wavy var(--bad);text-underline-offset:6px}.w.miss{background:var(--badbg);outline:1.5px solid var(--bad)}
+.brk{text-align:center;font-size:12px;color:var(--muted);padding:6px;letter-spacing:.02em}
+.note{background:var(--soft);border-radius:10px;padding:10px 12px;font-size:15px}
+#sheet{position:fixed;inset:auto 0 0 0;z-index:20;padding:0 8px 8px}
+#sheet .sheet-in{max-width:760px;margin:0 auto;background:var(--bg);border:1px solid var(--line);border-radius:16px 16px 12px 12px;padding:14px 16px;box-shadow:0 -10px 40px -10px rgba(0,0,0,.35);max-height:70vh;overflow:auto}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.scr{font-family:var(--scroll);font-weight:700}
+.plan{list-style:none;padding:0;margin:0}
+.day{display:grid;grid-template-columns:120px minmax(0,1fr);gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.day.past{opacity:.6}.day.today{background:var(--soft);border-radius:10px;padding:10px;border-bottom:0}.day.rest b{font-weight:600}
+.dd{font-weight:600}.pill{background:var(--field);color:var(--fieldink);border-radius:999px;padding:1px 8px;font-size:12px}
+.mrow{display:grid;grid-template-columns:110px minmax(0,1fr) 48px;gap:10px;align-items:center;padding:4px 0}
+.mbar{height:12px;background:var(--soft);border-radius:6px;overflow:hidden}.mbar i{display:block;height:100%;background:var(--blue)}
+.mrow b{text-align:right}
+.troubles{display:flex;flex-wrap:wrap;gap:6px 10px}.tw2{display:inline-flex;flex-direction:column;align-items:center;border:1px solid var(--line);border-radius:8px;padding:0 8px}.tw2 small{font-family:"Source Sans 3";font-size:11px;color:var(--bad)}
+.how{padding-inline-start:20px}.how li{margin:.35em 0}
+.tlist{display:grid;gap:6px}
+.trow{display:grid;grid-template-columns:56px minmax(0,1fr);gap:10px;padding:10px 0;border-bottom:1px solid var(--line);color:var(--ink)}
+.trow .tg .gl{font-size:34px}.trow.c0 .gl{color:var(--c0)}.trow.c2 .gl{color:var(--c2)}.trow.c3 .gl{color:var(--c3)}.trow.c4 .gl{color:var(--c4)}
+.link{background:none;border:0;color:var(--blue);font:inherit;text-decoration:underline;cursor:pointer;padding:0}
+.watch{background:var(--soft);border-radius:12px;padding:4px 16px 8px}.watch ul{padding-inline-start:18px}
+.alist{display:grid;gap:4px}
+.arow{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--line)}
+.acts{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.slist{display:grid;gap:4px;max-height:50vh;overflow:auto}
+.srow{display:grid;grid-template-columns:auto minmax(0,1fr) 60px auto;gap:8px;align-items:center}.srow .he{font-size:20px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tm{font-size:13px;color:var(--muted);text-align:right}
+.tapbox{margin-top:12px;background:var(--soft);border-radius:12px;padding:12px}
+.carstage{margin:16px 0;background:var(--field);color:var(--fieldink);border-radius:16px;padding:22px 18px;min-height:220px}
+.big-state{font-size:clamp(24px,6vw,34px);font-weight:700}
+.carstage .he{color:var(--fieldink);font-size:26px}
+.slider{display:block;margin:10px 0}.slider input{width:100%;height:32px}
+.contour{width:100%;height:120px;background:var(--bg);border-radius:8px;margin-top:8px}
+.contour polyline{fill:none;stroke-width:2.5;vector-effect:non-scaling-stroke}.contour .ref{stroke:var(--blue)}.contour .mine{stroke:var(--bad)}
+.key{display:inline-block;width:14px;height:4px;border-radius:2px;vertical-align:middle}.key.ref{background:var(--blue)}.key.mine{background:var(--bad)}
+.meter{height:8px;background:var(--soft);border-radius:4px;overflow:hidden}.meter i{display:block;height:100%;width:0;background:var(--ok);transition:width .1s}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:30;font-weight:600}
+footer{max-width:760px;margin:0 auto;padding:10px max(4vw,14px) 40px;font-size:13px;color:var(--muted)}
+footer a{color:inherit}
+a{color:var(--blue)}
+@media(max-width:600px){.seg{width:100%}.seg button{font-size:14px;padding:9px 4px}.tabs a{padding:10px 9px 11px;font-size:15px}.he{font-size:23px}.he.big{font-size:27px}.scrolltext{font-size:27px}.ctx{font-size:23px}.day{grid-template-columns:minmax(0,1fr)}.tikkun .pv{grid-template-columns:minmax(0,1fr)}.tikkun .tl{grid-column:1}.vn{padding-top:0}.grades .btn{padding:10px 6px;font-size:15px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="top"><div><h1>Vayeshev <span class="he">וַיֵּשֶׁב</span></h1><div class="sub" id="count"></div></div><div class="sub" id="sync"></div></div>
+  <nav class="tabs" aria-label="Sections"><a href="#practice" class="on">Practice</a><a href="#car">Car</a><a href="#tikkun">Tikkun</a><a href="#plan">Plan</a><a href="#trop">Trop</a><a href="#audio">Audio</a></nav>
+</header>
+<main id="view"><section class="band"><p class="muted">Loading the leining…</p></section></main>
+<div id="sheet" hidden></div>
+<div id="toast" hidden></div>
+<footer>Hebrew text: <a href="https://en.wikisource.org/wiki/User:Dovi/Miqra_according_to_the_Masorah#beginning">Miqra according to the Masorah</a> (Hebrew Wikisource), CC BY-SA 4.0. Stress, sheva and pronunciation guide from Phonetic MAM (MAM-basics), CC BY-SA 4.0. Font: Taamey D, GPL with font-embedding exception. Recordings: Rabbi Chaim Fessel via TorahDownloads (linked, not included).</footer>
+<script>
+/* Vayeshev leining trainer — app logic.
+   Text: Miqra according to the Masorah (Hebrew Wikisource), CC-BY-SA 4.0.
+   Stress / sheva / transliteration: Phonetic MAM (MAM-basics), CC-BY-SA 4.0. */
+{
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rnd = n => Math.floor(Math.random() * n);
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const pickW = (arr, wf) => { const ws = arr.map(wf); const tot = ws.reduce((a, b) => a + b, 0); if (!tot) return arr[rnd(arr.length)]; let r = Math.random() * tot; for (let i = 0; i < arr.length; i++) { r -= ws[i]; if (r <= 0) return arr[i]; } return arr[arr.length - 1]; };
+const NFC = s => s.normalize('NFC');
+const MIN = 60e3, HOUR = 3600e3, DAY = 86400e3;
+
+// ---------- calendar ----------
+const DEADLINE = new Date(2026, 11, 4, 13, 0).getTime();       // Friday Dec 4, early afternoon
+const LEINING = new Date(2026, 11, 5, 9, 0).getTime();         // Shabbos morning Dec 5
+const PLAN = [
+  { d: '2026-11-24', day: 'Tue Nov 24', from: 'G37:1', to: 'G37:11', label: 'Rishon' },
+  { d: '2026-11-25', day: 'Wed Nov 25', from: 'G37:12', to: 'G37:22', label: 'Sheni' },
+  { d: '2026-11-26', day: 'Thu Nov 26', from: 'G37:23', to: 'G37:36', label: 'Shlishi' },
+  { d: '2026-11-27', day: 'Fri Nov 27', from: 'G38:1', to: 'G38:15', label: "Revi'i, first half" },
+  { d: '2026-11-28', day: 'Shabbos Nov 28', rest: true, label: 'No app. Read Rishon to Revi\'i aloud from a chumash or tikkun, once through.' },
+  { d: '2026-11-29', day: 'Sun Nov 29', from: 'G38:16', to: 'G38:30', label: "Revi'i, second half" },
+  { d: '2026-11-30', day: 'Mon Nov 30', from: 'G39:1', to: 'G39:19', label: 'Chamishi and most of Shishi' },
+  { d: '2026-12-01', day: 'Tue Dec 1', from: 'G39:20', to: 'G40:13', label: "End of Shishi, start of Shevi'i" },
+  { d: '2026-12-02', day: 'Wed Dec 2', from: 'G40:14', to: 'N7:9', label: "End of Shevi'i, start of the maftir" },
+  { d: '2026-12-03', day: 'Thu Dec 3', from: 'N7:10', to: 'N7:17', label: 'End of the maftir, then a full run-through' },
+  { d: '2026-12-04', day: 'Fri Dec 4', review: true, label: 'Dress rehearsal: the whole leining from the scroll view, then trouble words only. Early night.' },
+  { d: '2026-12-05', day: 'Shabbos Dec 5', rest: true, label: 'Leining. Shabbos Chanukah: seven aliyos of Vayeshev, then maftir from the second sefer (Bamidbar 7:1–17).' },
+];
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
+// ---------- trop tables ----------
+const GLYPH = {
+  sof_pasuk: 'ֽ׃', esnachta: '֑', segol: '֒', shalsheles: '֓', zakef_katon: '֔', zakef_godol: '֕',
+  tipcha: '֖', revii: '֗', zarka: '֮', pashta: '֙', yesiv: '֚', tevir: '֛', geresh: '֜',
+  gershayim: '֞', karnei_para: '֟', telisha_gedola: '֠', pazer: '֡', munach: '֣', mahpach: '֤',
+  mercha: '֥', mercha_kefula: '֦', darga: '֧', kadma: '֨', telisha_ketana: '֩', yerach_ben_yomo: '֪',
+  munach_legarmeh: '֣ ׀',
+};
+const ROLE = {
+  sof_pasuk: 'The full stop at the end of every pasuk.',
+  esnachta: 'The big pause in the middle. It splits the pasuk into two halves.',
+  tipcha: 'A medium stop that comes just before Esnachta or Sof Pasuk, very often with a Mercha in front of it.',
+  segol: 'A strong pause in the first half of a pasuk, used in place of Zakef. Three dots above, at the end of the word.',
+  shalsheles: 'The rare long zig-zag note. It appears once in your leining, on וַיְמָאֵן (39:8), when Yosef refuses.',
+  zakef_katon: 'A strong pause inside a half-pasuk. Two dots above the word.',
+  zakef_godol: 'Same strength as Zakef Katon, for a word standing on its own; sung longer and fuller.',
+  revii: "A middle-strength pause. A single diamond dot above.",
+  zarka: 'Leads into Segol. Sits above, at the very end of the word.',
+  pashta: 'A pause that sets up Zakef. Sits above, at the end of the word; doubled when the stress is earlier.',
+  yesiv: 'Takes the place of Pashta on a short word with nothing before it. Sits below, before the first letter.',
+  tevir: 'A pause that leads toward Tipcha. Often has Mercha or Darga before it.',
+  geresh: 'A smaller pause, often right after Kadma ("Kadma v\'Azla").',
+  gershayim: 'In the Geresh family, a smaller pause. A double mark above.',
+  karnei_para: 'A very rare long pause.',
+  telisha_gedola: 'A small pause sitting above the start of the word.',
+  pazer: 'A long, flowery small pause. Rare in your leining (3 times).',
+  munach_legarmeh: 'A Munach with a line after it. It makes a small pause, usually before Revi\'i.',
+  munach: 'A connector that carries you into the next stop (Esnachta, Zakef, Revi\'i, Segol, Pazer and others).',
+  mahpach: 'A connector, almost always right before Pashta. A small sideways v below.',
+  mercha: 'A connector into Tipcha, Sof Pasuk or Tevir.',
+  mercha_kefula: 'A rare double Mercha.',
+  darga: 'A connector into Tevir.',
+  kadma: 'A connector into Pashta or Geresh. Looks like Pashta but sits on the stressed letter, not at the end.',
+  telisha_ketana: 'A connector in the Geresh family. Sits above, at the end of the word.',
+  yerach_ben_yomo: 'A rare connector shaped like a crescent below.',
+};
+const WHERE = {
+  pashta: 'above, end of word', zarka: 'above, end of word', segol: 'above, end of word', telisha_ketana: 'above, end of word',
+  telisha_gedola: 'above, start of word', yesiv: 'below, start of word',
+  munach: 'below', mercha: 'below', tipcha: 'below', esnachta: 'below', sof_pasuk: 'below + ׃', mahpach: 'below', darga: 'below',
+  tevir: 'below', mercha_kefula: 'below', yerach_ben_yomo: 'below',
+  zakef_katon: 'above', zakef_godol: 'above', revii: 'above', kadma: 'above', geresh: 'above', gershayim: 'above', pazer: 'above',
+  shalsheles: 'above', karnei_para: 'above', munach_legarmeh: 'below + line',
+};
+const CONF = {
+  mercha: ['munach', 'tipcha', 'mahpach', 'tevir'], munach: ['mercha', 'mahpach', 'kadma', 'munach_legarmeh'],
+  tipcha: ['mercha', 'tevir', 'munach', 'esnachta'], esnachta: ['sof_pasuk', 'zakef_katon', 'tipcha', 'segol'],
+  sof_pasuk: ['esnachta', 'tipcha', 'zakef_katon'], zakef_katon: ['zakef_godol', 'pashta', 'revii', 'segol'],
+  zakef_godol: ['zakef_katon', 'pashta', 'revii', 'shalsheles'], pashta: ['kadma', 'zakef_katon', 'yesiv', 'zarka'],
+  kadma: ['pashta', 'mahpach', 'munach', 'geresh'], mahpach: ['yesiv', 'munach', 'kadma', 'mercha'],
+  yesiv: ['mahpach', 'pashta', 'munach'], revii: ['zakef_katon', 'munach_legarmeh', 'pashta', 'geresh'],
+  tevir: ['tipcha', 'darga', 'mercha', 'revii'], darga: ['tevir', 'mercha', 'munach'], segol: ['zarka', 'zakef_katon', 'esnachta'],
+  zarka: ['segol', 'pashta', 'telisha_ketana'], geresh: ['gershayim', 'kadma', 'telisha_ketana'],
+  gershayim: ['geresh', 'revii', 'kadma'], telisha_ketana: ['telisha_gedola', 'kadma', 'pashta'],
+  telisha_gedola: ['telisha_ketana', 'pazer', 'geresh'], pazer: ['telisha_gedola', 'revii', 'geresh'],
+  munach_legarmeh: ['munach', 'revii', 'pazer'], shalsheles: ['pazer', 'zarka', 'segol'],
+};
+const COMMON = ['mercha', 'munach', 'tipcha', 'zakef_katon', 'pashta', 'revii', 'esnachta', 'tevir', 'mahpach', 'kadma'];
+const lvlClass = l => l <= 1 ? 'c0' : l === 2 ? 'c2' : l === 3 ? 'c3' : l === 4 ? 'c4' : 'c9';
+
+// ---------- dikduk helpers ----------
+const VOW = {
+  'ְ': ['sheva', "a quick 'e', or silent"], 'ֱ': ['chataf segol', "'eh'"], 'ֲ': ['chataf patach', "'ah'"],
+  'ֳ': ['chataf kamatz', "'aw'"], 'ִ': ['chirik', "'ee'"], 'ֵ': ['tzeirei', "'ei'"], 'ֶ': ['segol', "'eh'"],
+  'ַ': ['patach', "'ah'"], 'ָ': ['kamatz', "'aw'"], 'ֹ': ['cholam', "'oi' (or your shul's cholam)"],
+  'ֺ': ['cholam', "'oi'"], 'ֻ': ['kubutz', "'oo'"], 'ׇ': ['kamatz katan', "'aw'"],
+};
+const LETTER = { 'א': 'alef', 'ב': 'beis', 'ג': 'gimmel', 'ד': 'dalet', 'ה': 'hei', 'ו': 'vav', 'ז': 'zayin', 'ח': 'ches', 'ט': 'tes', 'י': 'yud', 'כ': 'kaf', 'ך': 'kaf', 'ל': 'lamed', 'מ': 'mem', 'ם': 'mem', 'נ': 'nun', 'ן': 'nun', 'ס': 'samech', 'ע': 'ayin', 'פ': 'pei', 'ף': 'pei', 'צ': 'tzadi', 'ץ': 'tzadi', 'ק': 'kuf', 'ר': 'reish', 'ש': 'shin', 'ת': 'sav' };
+const isLetter = ch => ch >= 'א' && ch <= 'ת';
+const stripTrop = p => NFC(p.replace(/[֑-ֽ֯׀׃]/g, ''));
+const tropOnly = p => p.replace(/[ְ-ׇּׁׂ]/g, '');
+function clustersOf(s) { const out = []; for (const ch of s.normalize('NFD')) { if (isLetter(ch)) out.push([ch, '']); else if (out.length) out[out.length - 1][1] += ch; } return out; }
+function explainDiff(right, wrong) {
+  const a = clustersOf(right), b = clustersOf(wrong);
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    if (a[i][1] === b[i][1]) continue;
+    const L = LETTER[a[i][0]] || a[i][0];
+    const va = [...a[i][1]].find(c => VOW[c]), vb = [...b[i][1]].find(c => VOW[c]);
+    const da = a[i][1].includes('ּ'), dbb = b[i][1].includes('ּ');
+    if (da !== dbb && 'בכפת'.includes(a[i][0]) && va === vb) {
+      const hard = { 'ב': 'B', 'כ': 'K', 'פ': 'P', 'ת': 'T' }[a[i][0]], soft = { 'ב': 'V', 'כ': 'CH', 'פ': 'F', 'ת': 'S' }[a[i][0]];
+      return da ? `The ${L} has a dagesh here, so it's "${hard}", not "${soft}".` : `No dagesh in the ${L} here, so it's "${soft}", not "${hard}".`;
+    }
+    if (va !== vb) {
+      const A = va ? VOW[va] : ['no vowel', ''], B = vb ? VOW[vb] : ['no vowel', ''];
+      return `Under the ${L}: it's ${A[0]}${A[1] ? ' ' + A[1] : ''}, not ${B[0]}${B[1] ? ' ' + B[1] : ''}.`;
+    }
+  }
+  return '';
+}
+const SHEVA_RULE = {
+  start: 'First letter of the word: a sheva there is always said.',
+  second: 'Two shevas in a row in the middle of a word: the first is silent, the second is said.',
+  after_na: 'This comes right after a sheva that is said, so this one is silent.',
+  dagesh: 'The letter has a dagesh chazak (a doubling dagesh), so its sheva is said.',
+  twin: 'It sits under the first of two identical letters, so it is said.',
+  long: 'It follows a long vowel (kamatz, tzeirei, cholam, shuruk or chirik with a yud), so it is said.',
+  long_meteg: 'It follows a long vowel marked with a meteg, so it is said.',
+  short: 'It follows a short vowel (patach, segol, chirik, kubutz), which closes the syllable, so it is silent.',
+};
+
+// ---------- look-alike notes ----------
+const TRAP_NOTE = {
+  'את': 'אֶת־ (es) is joined to the next word; אֵת (eis) stands alone. אַתְּ (at) in 39:9 means "you" (she is his wife).',
+  'אל': 'אֶל (el) means "to". אַל (al) means "don\'t": Reuven saying "don\'t spill blood", "don\'t lay a hand".',
+  'ויאמר': 'וַיֹּאמֶר (vayomer) is the normal form. At a big pause it becomes וַיֹּאמַר (vayomar), as in 37:30.',
+  'אתו': 'אֹתוֹ (oso) means "him". אִתּוֹ (ito) means "with him": "Hashem was with him".',
+  'אחיו': 'אֶחָיו (echov) means "his brothers". אָחִיו (ochiv) means "his brother". The scroll letters are the same; the story tells you which.',
+  'לאחיו': 'לְאֶחָיו (l\'echov), to his brothers; לְאָחִיו (l\'ochiv), to his brother (Onan, 38:9).',
+  'אחיך': 'אַחֶיךָ (achecho), your brothers; אָחִיךָ (ochicho), your brother (Yehuda to Onan, 38:8).',
+  'ואת': 'וְאֶת־ (v\'es) is joined to the next word; וְאֵת (v\'eis) stands alone.',
+  'הוא': 'The Torah writes הוא for both. Pointed הוּא it is "hu" (he); pointed הִוא it is "hi" (she), whenever it is about Tamar or Bas Shua.',
+  'והוא': 'Same as הוא: וְהוּא (v\'hu) is he; וְהִוא (v\'hi) is she.',
+  'בן': 'בֶּן־ (ben) is joined to the next word. בֵּן (bein) stands alone, "a son", in 38:3–5.',
+  'מה': 'מָה (mo) or מַה (mah), depending on the next word.',
+  'בבית': 'בְּבֵית (b\'veis), in the house of; בַּבַּיִת (babayis), in the house; at a pause it becomes בַּבָּיִת (baboyis).',
+  'בני': 'בְּנֵי (b\'nei) means "sons of". בְּנִי / בְנִי (b\'ni / v\'ni) means "my son".',
+  'בא': 'בָּא (bo, kamatz) means "came" or "coming". בֹּא (boi, cholam) is "come!" (38:8).',
+  'ויתן': 'וַיִּתֵּן (vayitein) is normal; joined by a maqaf it shortens to וַיִּתֶּן־ (vayiten).',
+  'אתם': 'אֹתָם (osom) means "them". אִתָּם (itom) means "with them" (40:4).',
+  'ויבא': 'וַיָּבֵא (vayovei) means "he brought" (37:2, the bad report). וַיָּבֹא (vayovo) means "he came".',
+  'שמו': 'שְׁמוֹ (sh\'mo) means "his name". שָׂמוּ (somu) means "they put" (40:15).',
+  'נתן': 'נָתַן (nosan) means "gave"; נָתָן (noson) at a pause; נְתׇן (n\'son) means "giving" (38:9).',
+  'וישב': 'וַיֵּשֶׁב (vayeishev), he settled (37:1); וַיָּשׇׁב (vayoshov), he returned; וַיָּשֶׁב (vayoshev), he restored the butler (40:21).',
+  'עשה': 'עָשָׂה (osoh) means "did". עֹשֶׂה (oseh) means "does" or "was doing".',
+  'רעה': 'רֹעֶה (ro\'eh) means "shepherding". רָעָה (ro\'oh) means "bad" or "evil".',
+  'אחר': 'אַחַר (achar) means "after". אַחֵר (acheir) means "another" (37:9, another dream).',
+  'לך': 'לְךָ (l\'cho), to you; לֶךְ (lech), go!; לָךְ (loch), to you (feminine, or at a pause).',
+  'וכל': 'וְכׇל־ (v\'chol) is joined to the next word; וְכֹל (v\'choil) stands alone.',
+  'מכל': 'מִכׇּל־ (mikol) is joined to the next word; מִכֹּל (mikoil) stands alone.',
+  'מצרים': 'מִצְרַיִם (mitzrayim) normally; מִצְרָיִם (mitzroyim) at a pause.',
+  'לפני': 'לִפְנֵי (lifnei) means "before". לְפָנָי (l\'fonai) means "before me" (40:9).',
+  'ביום': 'בַּיּוֹם (bayom), on the day; בְּיוֹם (b\'yom), on the day of.',
+  'ויגד': 'וַיַּגֵּד (vayageid), he told; וַיֻּגַּד (vayugad), it was told.',
+  'בנו': 'בָּנוּ (bonu) means "over us" or "at us". בְּנוֹ (b\'no) means "his son".',
+  'רעים': 'רֹעִים (ro\'im, cholam) means "shepherding". רָעִים (ro\'im, kamatz) means "sad" or "bad" (40:7).',
+  'כסף': 'כֶּסֶף (kesef) normally; כָּסֶף (kosef) at a pause.',
+  'אלי': 'אֵלַי (eilai) normally; אֵלָי (eiloi) at a pause.',
+  'שני': 'שָׁנִי (shoni) is the scarlet thread. שְׁנֵי (sh\'nei) means "two of".',
+  'במשמר': 'בְּמִשְׁמַר (b\'mishmar) normally; בְּמִשְׁמָר (b\'mishmor) at a pause.',
+  'ראשי': 'רֹאשִׁי (roshi) means "my head". רָאשֵׁי (roshei) means "the heads of" (7:2).',
+  'עשרה': 'עֶשְׂרֵה (esrei), as in seventeen; עֲשָׂרָה (asoroh), ten.',
+  'חלמתי': 'חָלַמְתִּי (cholamti) normally; חָלָמְתִּי (cholomti) at a pause.',
+  'המלך': 'הֲמָלֹךְ (hamoloch) means "will you rule?" (37:8). הַמֶּלֶךְ (hamelech) means "the king".',
+  'ארצה': 'אַרְצָה (artzoh), to the ground; אָרְצָה (ortzoh) at a pause.',
+  'ראה': 'רְאֵה (r\'ei) means "go see!". רֹאֶה (ro\'eh) means "sees".',
+  'הכתנת': 'Two forms of "the coat": הַכֻּתֹּנֶת (hakutoines) and הַכְּתֹנֶת (hak\'soines).',
+  'טרף': 'טָרֹף טֹרַף (toroif toraf): "torn, torn to pieces". Two different vowel patterns, side by side.',
+  'בעת': 'בָּעֵת (bo\'eis), at that time; בְּעֵת (b\'eis), at the time of.',
+  'הדרך': 'הַדֶּרֶךְ (haderech) normally; הַדָּרֶךְ (hadorech) at a pause.',
+  'תתן': 'תִּתֵּן (titein) normally; תִּתֶּן־ (titen) when joined by a maqaf.',
+  'אדני': 'אֲדֹנִי (adoni) means "my master". אֲדֹנֵי (adonei) means "the master of".',
+  'אתי': 'אִתִּי (iti) means "with me". אֹתִי (osi) means "me".',
+  'אותך': 'אוֹתָךְ (osoch), you (feminine, 39:9); אוֹתְךָ (os\'cho), you (40:19).',
+  'ראשך': 'רֹאשֶׁךָ (roshecho) at a pause; רֹאשְׁךָ (rosh\'cho) normally.',
+  'פתר': 'פָּתַר (posar) normally; פָּתָר (posor) at a pause.',
+};
+
+// ---------- story map (plain English, our own words) ----------
+const STORY = [
+  ['G37:1', 'Yaakov settles in Canaan. Yosef, seventeen, brings bad reports about his brothers. Yaakov loves him most and makes him a special coat, and the brothers hate him.'],
+  ['G37:5', "Yosef's first dream: the brothers' sheaves bow to his. They hate him even more."],
+  ['G37:9', 'The second dream: sun, moon and eleven stars. Yaakov scolds him, but keeps the matter in mind.'],
+  ['G37:12', 'Yaakov sends Yosef to check on his brothers at Shechem. A man finds him wandering and points him to Dosan.'],
+  ['G37:18', 'The brothers plot to kill him. Reuven talks them into throwing him into a pit instead.'],
+  ['G37:23', 'They strip off his coat and throw him into the empty pit. A caravan passes; Yehuda says "let\'s sell him"; he is taken to Egypt.'],
+  ['G37:29', 'Reuven comes back to an empty pit. They dip the coat in blood and bring it to Yaakov, who mourns and refuses comfort.'],
+  ['G37:36', 'Yosef is sold in Egypt to Potiphar.'],
+  ['G38:1', 'Yehuda marries. His sons Er and Onan die, and he tells Tamar to wait for Shelah.'],
+  ['G38:12', 'Tamar sits by the road at Einayim. Yehuda leaves his seal, cord and staff as a pledge.'],
+  ['G38:20', "Yehuda's friend goes to pay her, but she can't be found."],
+  ['G38:24', 'Tamar is brought out to be burned. She sends the pledge, and Yehuda admits, "She is more righteous than I."'],
+  ['G38:27', 'Twins are born: Peretz, and Zerach with the scarlet thread.'],
+  ['G39:1', "Yosef in Potiphar's house. Hashem is with him and everything he does succeeds."],
+  ['G39:7', "Potiphar's wife pressures him day after day. He refuses (the Shalsheles on וַיְמָאֵן) and runs out, leaving his garment."],
+  ['G39:13', 'She accuses him, and Potiphar puts him in prison.'],
+  ['G39:21', 'Even in prison Hashem is with him. The warden puts him in charge.'],
+  ['G40:1', "Pharaoh's butler and baker are jailed with Yosef. Both dream on the same night."],
+  ['G40:9', "The butler's dream: a vine with three branches. In three days he'll be restored. Yosef asks to be remembered."],
+  ['G40:16', "The baker's dream: three baskets. In three days he'll be hanged."],
+  ['G40:20', "Pharaoh's birthday: the butler is restored, the baker is hanged, and the butler forgets Yosef."],
+  ['N7:1', 'The day Moshe finished the Mishkan. The nesi\'im bring six wagons and twelve oxen, given to the Levi\'im.'],
+  ['N7:10', 'The nesi\'im bring their dedication offerings, one nasi a day.'],
+  ['N7:12', 'Day one: Nachshon ben Aminadav, of Yehuda, and his offering.'],
+];
+const FESSEL = { 1: 1005617, 2: 1005618, 3: 1005619, 4: 1005620, 5: 1005621, 6: 1005622, 7: 1005623 };
+
+// ---------- state ----------
+const KEY = 'vayeshev-trainer-v1';
+let S = { v: 1, upd: 0, cards: {}, learned: {}, ws: {}, trouble: {}, days: {}, audio: {}, set: { mode: 'full', names: false, colors: true, tr: false, focus: 0, speed: 1, pause: 1.25, carMode: 'test' }, ahead: 0, car: {} };
+try { const j = JSON.parse(localStorage.getItem(KEY) || 'null'); if (j && j.v === 1) S = Object.assign(S, j); } catch (e) { }
+let DB = null, UID = null, saveTimer = null, writing = false, writeAgain = false;
+function save() {
+  S.upd = Date.now();
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { }
+  clearTimeout(saveTimer); saveTimer = setTimeout(remoteSave, 2500);
+}
+async function remoteSave() {
+  if (!DB || !UID) return;
+  if (writing) { writeAgain = true; return; }
+  writing = true;
+  try { await DB.doc('data/users/' + UID + '/progress').set({ s: JSON.stringify(S), upd: S.upd }); $('#sync').textContent = 'Progress saved'; }
+  catch (e) { $('#sync').textContent = 'Saved on this device only'; }
+  writing = false;
+  if (writeAgain) { writeAgain = false; remoteSave(); }
+}
+async function connectStore() {
+  if (!(window.claude && claude.use)) { $('#sync').textContent = 'Saved on this device'; return; }
+  try {
+    const [db, user] = await Promise.all([claude.use('db'), claude.use('user')]);
+    if (!db || !user) { $('#sync').textContent = 'Saved on this device'; return; }
+    const id = await user.id(); if (!id) { $('#sync').textContent = 'Saved on this device'; return; }
+    DB = db; UID = id;
+    const snap = await db.doc('data/users/' + id + '/progress').get();
+    if (snap.exists) {
+      const d = snap.data();
+      if (d && d.upd > (S.upd || 0)) { const j = JSON.parse(d.s); S = Object.assign(S, j); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } route(); }
+    }
+    $('#sync').textContent = 'Progress saves to your account';
+  } catch (e) { $('#sync').textContent = 'Saved on this device'; }
+}
+
+// ---------- data ----------
+let D, V = [], VK = {}, ALI = {}, TRAPS = [];
+function prep(data) {
+  D = data;
+  V = D.verses.map((v, vi) => {
+    const key = v.b + v.c + ':' + v.v;
+    const words = v.w.map((w, wi) => ({ ...w, wi, n: stripTrop(w.p), m: tropOnly(w.p), lvl: (D.meta.trop[w.t] || { lvl: 9 }).lvl }));
+    const chunks = []; let st = 0;
+    words.forEach((w, wi) => { if (w.lvl <= 2) { chunks.push([st, wi]); st = wi + 1; } });
+    if (st < words.length) chunks.push([st, words.length - 1]);
+    const syl = words.reduce((a, w) => a + (w.dv ? 3 : String(w.tr || '').split(/[·-]/).length), 0);
+    return { ...v, vi, key, ref: (v.b === 'N' ? 'Bamidbar ' : '') + v.c + ':' + v.v, words, chunks, syl };
+  });
+  V.forEach(v => { VK[v.key] = v.vi; (ALI[v.a] = ALI[v.a] || []).push(v.vi); });
+  TRAPS = D.traps.filter(t => t.k === 'vowel');
+  STORY.forEach(([k, s]) => { if (VK[k] !== undefined) V[VK[k]].story = s; });
+}
+const aliName = a => D.meta.aliyos[a - 1].name;
+const posInAli = vi => ALI[V[vi].a].indexOf(vi) + 1;
+
+// ---------- plan ----------
+function planVerses(p) { if (!p.from) return []; const a = VK[p.from], b = VK[p.to]; const out = []; for (let i = a; i <= b; i++) out.push(i); return out; }
+function planIndexToday() {
+  const t = todayStr(); let idx = -1;
+  PLAN.forEach((p, i) => { if (p.d <= t) idx = i; });
+  return idx;
+}
+function unlockedVerses() {
+  const idx = planIndexToday();
+  const set = new Set();
+  let extra = S.ahead || 0;
+  PLAN.forEach((p, i) => { if (i <= idx || (p.from && i > idx && extra > 0 && (extra--, true))) planVerses(p).forEach(v => set.add(v)); });
+  if (idx < 0) planVerses(PLAN[0]).forEach(v => set.add(v));
+  Object.keys(S.learned).forEach(k => set.add(+k));
+  return [...set].sort((a, b) => a - b);
+}
+function newQueue() { const f = S.set.focus; return unlockedVerses().filter(vi => !S.learned[vi] && (!f || V[vi].a === f)); }
+
+// ---------- cards ----------
+function mk(id, delayMin) { if (!S.cards[id]) S.cards[id] = { d: Date.now() + delayMin * MIN * (0.8 + Math.random() * 0.4), i: 0, e: 2.3, r: 0, l: 0, s: 0 }; }
+function quizWords(v, kind) {
+  return v.words.filter((w, wi) => {
+    if (kind === 'T') return wi < v.words.length - 1 && w.t;
+    if (kind === 'H') return !w.dv && w.dx && w.dx.length >= 3;
+    if (kind === 'S') return !w.dv && w.ns >= 2 && (w.st === 0 || w.st === 1);
+    if (kind === 'N') return !w.dv && (w.sh || []).some(s => s[3] !== 'start' && SHEVA_RULE[s[3]]);
+    return false;
+  });
+}
+function learnVerse(vi) {
+  S.learned[vi] = Date.now();
+  const v = V[vi];
+  mk('R:' + vi, 0.2); mk('T:' + vi, 0.5);
+  if (quizWords(v, 'H').length) mk('H:' + vi, 1.5);
+  if (quizWords(v, 'S').length) mk('S:' + vi, 2.5);
+  if (quizWords(v, 'N').length) mk('N:' + vi, 4);
+  if (v.chunks.some(c => c[1] > c[0])) mk('P:' + vi, 3);
+  if (vi > 0 && S.learned[vi - 1]) mk('X:' + (vi - 1), 1);
+  if (vi < V.length - 1 && S.learned[vi + 1]) mk('X:' + vi, 2);
+  TRAPS.forEach((t, ti) => t.f.forEach((f, fi) => { if (f.at.some(a => a[0] === vi)) mk('L:' + ti + ':' + fi, 5); }));
+  if (v.key === 'G39:20') mk('K:kq', 1);
+  if (v.key === 'G39:8') mk('K:shal', 1);
+  extraMode = false;
+  const d = S.days[todayStr()] = S.days[todayStr()] || { n: 0, ok: 0, nw: 0 }; d.nw++;
+  save();
+}
+function cardVerses(id) {
+  const p = id.split(':');
+  if ('RTHSNPXW'.includes(p[0])) return [+p[1]];
+  if (p[0] === 'L') { const f = TRAPS[+p[1]].f[+p[2]]; return f.at.map(a => a[0]).filter(vi => S.learned[vi]); }
+  if (id === 'K:kq') return [VK['G39:20']];
+  if (id === 'K:shal') return [VK['G39:8']];
+  return [];
+}
+function cardOk(id) { const f = S.set.focus; const vs = cardVerses(id); if (!vs.length) return false; return !f || vs.some(vi => V[vi].a === f); }
+function grade(id, q) {
+  const c = S.cards[id]; if (!c) return; const now = Date.now(); c.s++;
+  if (q === 0) { c.l++; c.e = Math.max(1.3, c.e - 0.2); c.i = 0; c.d = now + (80 + Math.random() * 60) * 1000; c.rl = 1; }
+  else {
+    let ivl;
+    if (c.rl) { ivl = 10; c.rl = 0; }
+    else if (c.r === 0) ivl = q === 3 ? 1440 : q === 2 ? 300 : 45;
+    else if (c.r === 1) ivl = q === 1 ? 300 : 1200;
+    else ivl = Math.max(c.i * (q === 1 ? 1.2 : q === 3 ? c.e * 1.3 : c.e), c.i + 60);
+    if (q === 1) c.e = Math.max(1.3, c.e - 0.15);
+    if (q === 3) c.e = Math.min(3, c.e + 0.1);
+    ivl *= 0.9 + Math.random() * 0.2;
+    let due = now + ivl * MIN;
+    const cap = DEADLINE - 4 * HOUR;
+    if (due > cap) due = Math.max(now + 30 * MIN, cap - Math.random() * 14 * HOUR);
+    c.i = ivl; c.d = due; c.r++;
+  }
+  const d = S.days[todayStr()] = S.days[todayStr()] || { n: 0, ok: 0, nw: 0 }; d.n++; if (q > 0) d.ok++;
+  save();
+}
+function wordStat(vi, wi, ok) { const k = vi + ':' + wi; const s = S.ws[k] = S.ws[k] || [0, 0]; s[0]++; if (!ok) { s[1]++; S.trouble[k] = (S.trouble[k] || 0) + 1; mk('W:' + k, 2); } }
+const TYPEW = { R: 1.35, W: 1.45, K: 1.3, L: 1.1, T: 1, H: 1, S: 0.9, N: 0.8, P: 0.9, X: 0.85 };
+let recent = [], sinceNew = 99;
+function dueCards(now, ahead = MIN) { return Object.entries(S.cards).filter(([id, c]) => c.d <= now + ahead && cardOk(id)); }
+function pickCard(extra) {
+  const now = Date.now();
+  let cand = dueCards(now);
+  if (!cand.length && extra) cand = Object.entries(S.cards).filter(([id]) => cardOk(id)).sort((a, b) => (a[1].e - a[1].l * 0.3) - (b[1].e - b[1].l * 0.3)).slice(0, 25);
+  if (!cand.length) return null;
+  const last = recent[recent.length - 1];
+  const scored = cand.map(([id, c]) => {
+    const over = Math.min(3, Math.max(0, (now - c.d) / (Math.max(c.i, 10) * MIN)));
+    let s = (1 + over) * (TYPEW[id[0]] || 1) + 0.6 * c.l + (c.e < 2 ? 0.5 : 0);
+    if (id[0] === 'L') { const f = TRAPS[+id.split(':')[1]].f[+id.split(':')[2]]; if (f.at.length > 10) s *= 0.5; }
+    const vs = cardVerses(id);
+    if (recent.slice(-2).some(r => r.vs.some(x => vs.includes(x)))) s *= 0.25;
+    if (last && last.t === id[0]) s *= 0.55;
+    return [id, s];
+  }).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  return pickW(scored, x => x[1] * x[1])[0];
+}
+
+// ---------- audio ----------
+let AC = null; const BUF = {}, BLOB = {};
+function ac() { if (!AC) { const C = window.AudioContext || window.webkitAudioContext; if (C) AC = new C(); } if (AC && AC.state === 'suspended') AC.resume().catch(() => { }); return AC; }
+const IDB = {
+  open() { return new Promise((res, rej) => { try { const r = indexedDB.open('vayeshev-audio', 1); r.onupgradeneeded = () => r.result.createObjectStore('f'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); } catch (e) { rej(e); } }); },
+  async put(k, v) { const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction('f', 'readwrite'); tx.objectStore('f').put(v, k); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); },
+  async get(k) { const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction('f'); const r = tx.objectStore('f').get(k); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+};
+async function loadAudioFile(a, file) {
+  const ctx = ac(); if (!ctx) throw new Error('No audio on this device');
+  const ab = await file.arrayBuffer();
+  const buf = await ctx.decodeAudioData(ab.slice(0));
+  BUF[a] = buf; BLOB[a] = file;
+  try { await IDB.put('a' + a, file); } catch (e) { }
+  const marks = autoSync(buf, ALI[a]);
+  S.audio[a] = { marks, dur: buf.duration, name: file.name || 'recording', auto: true };
+  save();
+}
+async function restoreAudio() {
+  for (const a of Object.keys(S.audio)) {
+    if (BUF[a]) continue;
+    try { const f = await IDB.get('a' + a); if (f) { const ctx = ac(); if (!ctx) return; BUF[a] = await ctx.decodeAudioData((await f.arrayBuffer()).slice(0)); BLOB[a] = f; } } catch (e) { }
+  }
+  if (location.hash === '#audio' || location.hash === '#car') route();
+}
+function frameDb(buf, hop = 0.02) {
+  const sr = buf.sampleRate, ch = buf.getChannelData(0), n = Math.floor(buf.duration / hop), out = new Float32Array(n), step = Math.round(sr * hop);
+  for (let i = 0; i < n; i++) { let s = 0; const o = i * step; for (let k = 0; k < step; k += 2) { const x = ch[o + k] || 0; s += x * x; } out[i] = 10 * Math.log10(s / (step / 2) + 1e-10); }
+  return out;
+}
+function autoSync(buf, vis) {
+  const hop = 0.02, db = frameDb(buf, hop), n = db.length;
+  const sorted = [...db].sort((a, b) => a - b), floor = sorted[Math.floor(n * 0.1)], top = sorted[Math.floor(n * 0.95)];
+  const thr = floor + 0.3 * (top - floor);
+  let s0 = 0; while (s0 < n && db[s0] < thr) s0++;
+  let e0 = n - 1; while (e0 > 0 && db[e0] < thr) e0--;
+  const T0 = s0 * hop, T1 = (e0 + 1) * hop;
+  const pauses = [];
+  for (let i = s0; i <= e0;) { if (db[i] < thr) { let j = i; while (j <= e0 && db[j] < thr) j++; const L = (j - i) * hop; if (L >= 0.08) pauses.push({ c: (i + j) / 2 * hop, end: j * hop, L }); i = j; } else i++; }
+  const N = vis.length, syl = vis.map(vi => V[vi].syl), tot = syl.reduce((a, b) => a + b, 0), rate = (T1 - T0) / tot;
+  const prop = () => { const m = [T0]; let acc = 0; for (let k = 0; k < N - 1; k++) { acc += syl[k]; m.push(T0 + acc * rate); } return m; };
+  if (N === 1) return [T0];
+  if (pauses.length < N - 1) return prop();
+  const C = pauses.length, INF = 1e18;
+  const cost = (k, from, to) => { const Dk = syl[k] * rate, sg = 0.3 * Dk + 0.6, x = (to - from - Dk) / sg; return x * x; };
+  const bonus = j => -2.2 * Math.log(pauses[j].L / 0.1);
+  let dp = new Float64Array(C).fill(INF); const back = [];
+  for (let j = 0; j < C; j++) dp[j] = cost(0, T0, pauses[j].c) + bonus(j);
+  for (let k = 1; k < N - 1; k++) {
+    const nd = new Float64Array(C).fill(INF), bk = new Int32Array(C).fill(-1);
+    for (let j = k; j < C; j++) { let best = INF, bi = -1; for (let i = k - 1; i < j; i++) { if (dp[i] >= INF) continue; const v = dp[i] + cost(k, pauses[i].c, pauses[j].c); if (v < best) { best = v; bi = i; } } if (bi >= 0) { nd[j] = best + bonus(j); bk[j] = bi; } }
+    back.push(bk); dp = nd;
+  }
+  let best = INF, bj = -1;
+  for (let j = 0; j < C; j++) { if (dp[j] >= INF) continue; const v = dp[j] + cost(N - 1, pauses[j].c, T1); if (v < best) { best = v; bj = j; } }
+  if (bj < 0) return prop();
+  const idx = [bj]; for (let k = back.length - 1; k >= 0; k--) idx.unshift(back[k][idx[0]]);
+  return [T0, ...idx.map(j => Math.max(0, pauses[j].end - 0.06))];
+}
+function segOf(vi) {
+  const a = V[vi].a, au = S.audio[a]; if (!au || !BUF[a]) return null;
+  const i = ALI[a].indexOf(vi); const t0 = au.marks[i]; const t1 = i + 1 < au.marks.length ? au.marks[i + 1] : au.dur;
+  return { a, t0, t1: Math.max(t0 + 0.3, t1) };
+}
+let playing = null;
+function stopAudio() { if (playing) { try { playing.stop(); } catch (e) { } playing = null; } if (EL) { EL.pause(); } }
+let EL = null;
+function playRange(a, t0, t1, rate = 1) {
+  stopAudio();
+  return new Promise(res => {
+    if (rate !== 1 && BLOB[a]) {
+      if (!EL) { EL = new Audio(); EL.preservesPitch = true; EL.webkitPreservesPitch = true; }
+      if (EL._a !== a) { if (EL.src) URL.revokeObjectURL(EL.src); EL.src = URL.createObjectURL(BLOB[a]); EL._a = a; }
+      EL.playbackRate = rate; EL.currentTime = t0;
+      const tick = () => { if (EL.paused) return res(); if (EL.currentTime >= t1) { EL.pause(); return res(); } requestAnimationFrame(tick); };
+      EL.play().then(() => requestAnimationFrame(tick)).catch(() => res());
+      return;
+    }
+    const ctx = ac(), buf = BUF[a]; if (!ctx || !buf) return res();
+    const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
+    src.onended = () => { if (playing === src) playing = null; res(); };
+    playing = src; src.start(0, t0, Math.max(0.1, t1 - t0));
+  });
+}
+function playVerse(vi, rate) { const s = segOf(vi); if (!s) return Promise.resolve(false); return playRange(s.a, s.t0, s.t1, rate || S.set.speed).then(() => true); }
+function beep(f = 880, d = 0.14) { const ctx = ac(); if (!ctx) return Promise.resolve(); return new Promise(res => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = f; g.gain.setValueAtTime(0.0001, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + d); o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + d + 0.02); o.onended = res; }); }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// ---------- voice ----------
+let TTS = null, DICT = null, noTTS = false;
+async function say(text) {
+  if (TTS && !noTTS) { try { await TTS.speak(text, { language: 'en' }); return; } catch (e) { if (e && (e.code === 'not_granted' || e.code === 'unavailable')) { noTTS = true; return; } } }
+  if (noTTS) return;
+  if ('speechSynthesis' in window) {
+    return new Promise(res => { try { const u = new SpeechSynthesisUtterance(text); u.lang = 'en-US'; u.rate = 1.05; const en = speechSynthesis.getVoices().find(v => /^en/i.test(v.lang)); if (en) u.voice = en; u.onend = res; u.onerror = res; speechSynthesis.cancel(); speechSynthesis.speak(u); setTimeout(res, 1200 + text.length * 85); } catch (e) { res(); } });
+  }
+}
+
+// ---------- pitch ----------
+function pitchTrack(x0, sr) {
+  const f = Math.max(1, Math.round(sr / 8000)), fs = sr / f, n = Math.floor(x0.length / f), x = new Float32Array(n);
+  for (let i = 0; i < n; i++) { let s = 0; for (let k = 0; k < f; k++) s += x0[i * f + k]; x[i] = s / f; }
+  const W = Math.round(fs * 0.04), hop = Math.round(fs * 0.016), minL = Math.floor(fs / 450), maxL = Math.ceil(fs / 70);
+  const frames = []; let maxE = 0;
+  for (let o = 0; o + W + maxL < n; o += hop) { let e = 0; for (let i = 0; i < W; i++) e += x[o + i] * x[o + i]; frames.push([o, e]); if (e > maxE) maxE = e; }
+  const out = [];
+  for (const [o, e] of frames) {
+    if (e < maxE * 0.02) { out.push(0); continue; }
+    const nsdf = []; let gmax = 0;
+    for (let L = minL; L <= maxL; L++) { let r = 0, m = 0; for (let i = 0; i < W; i++) { const a = x[o + i], b = x[o + i + L]; r += a * b; m += a * a + b * b; } const v = m ? 2 * r / m : 0; nsdf.push(v); if (v > gmax) gmax = v; }
+    if (gmax < 0.6) { out.push(0); continue; }
+    // McLeod: the first clear peak (>= 0.9 of the best) is the true period; later peaks are octave errors
+    let bi = -1;
+    for (let i = 1; i < nsdf.length - 1; i++) { if (nsdf[i] >= nsdf[i - 1] && nsdf[i] >= nsdf[i + 1] && nsdf[i] >= 0.9 * gmax) { bi = i; break; } }
+    if (bi < 0) { out.push(0); continue; }
+    const bl = bi + minL;
+    let L = bl; { const a = nsdf[bi - 1], b = nsdf[bi], c = nsdf[bi + 1]; const d = a - 2 * b + c; if (d) L = bl + 0.5 * (a - c) / d; }
+    out.push(fs / L);
+  }
+  return out;
+}
+function semis(track) {
+  const v = track.filter(f => f > 0); if (v.length < 8) return [];
+  const med = [...v].sort((a, b) => a - b)[Math.floor(v.length / 2)];
+  let s = v.map(f => 12 * Math.log2(f / med));
+  // fold stray octave jumps back toward the line of the melody
+  s = s.map((y, i) => { const w = s.slice(Math.max(0, i - 7), i + 8).sort((a, b) => a - b), m = w[Math.floor(w.length / 2)]; while (y - m > 8) y -= 12; while (m - y > 8) y += 12; return y; });
+  const sm = s.map((_, i) => { const w = s.slice(Math.max(0, i - 2), i + 3).sort((a, b) => a - b); return w[Math.floor(w.length / 2)]; });
+  const step = Math.max(1, Math.floor(sm.length / 260)); return sm.filter((_, i) => i % step === 0);
+}
+function dtw(a, b) {
+  const n = a.length, m = b.length; if (!n || !m) return { score: 0, path: [] };
+  const w = Math.max(Math.abs(n - m) + 4, Math.floor(Math.max(n, m) * 0.12));
+  const D = new Float32Array((n + 1) * (m + 1)).fill(1e9); D[0] = 0; const I = (i, j) => i * (m + 1) + j;
+  for (let i = 1; i <= n; i++) { const jc = Math.round(i * m / n); for (let j = Math.max(1, jc - w); j <= Math.min(m, jc + w); j++) { const da = i > 1 ? a[i - 1] - a[i - 2] : 0, db2 = j > 1 ? b[j - 1] - b[j - 2] : 0; const c = Math.min(Math.abs(a[i - 1] - b[j - 1]) + 1.5 * Math.abs(da - db2), 6); D[I(i, j)] = c + Math.min(D[I(i - 1, j)], D[I(i, j - 1)], D[I(i - 1, j - 1)]); } }
+  let i = n, j = m, steps = 0; const path = [];
+  while (i > 0 && j > 0) { path.push([i - 1, j - 1]); steps++; const d = D[I(i - 1, j - 1)], u = D[I(i - 1, j)], l = D[I(i, j - 1)]; if (d <= u && d <= l) { i--; j--; } else if (u < l) i--; else j--; }
+  const avg = D[I(n, m)] / Math.max(1, steps);
+  return { score: Math.max(0, Math.min(100, Math.round(100 - 30 * (avg - 0.3)))), avg, path: path.reverse() };
+}
+function refSamples(vi) { const s = segOf(vi); if (!s) return null; const buf = BUF[s.a], sr = buf.sampleRate; return { x: buf.getChannelData(0).subarray(Math.floor(s.t0 * sr), Math.floor(s.t1 * sr)), sr }; }
+function contourSvg(ref, mine) {
+  const W = 600, H = 120, all = ref.concat(mine || []), lo = Math.min(-7, ...all), hi = Math.max(7, ...all);
+  const pts = (arr, n) => arr.map((y, i) => `${(i / Math.max(1, (n || arr.length) - 1) * W).toFixed(1)},${(H - (y - lo) / (hi - lo) * H).toFixed(1)}`).join(' ');
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="contour" role="img" aria-label="Tune shape"><polyline points="${pts(ref)}" class="ref"/>${mine ? `<polyline points="${pts(mine)}" class="mine"/>` : ''}</svg>`;
+}
+const MIC = { stream: null, ok: null };
+const LIVE = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && !(window.claude && window.claude.use);
+const SRC = window.SpeechRecognition || window.webkitSpeechRecognition;
+function micClose() { if (MIC.stream) { MIC.stream.getTracks().forEach(t => t.stop()); MIC.stream = null; } }
+function listenCommand(ms) {
+  return new Promise(res => {
+    if (!SRC) return res(null);
+    let done = false; const fin = q => { if (done) return; done = true; clearTimeout(t); try { r.abort(); } catch (e) { } res(q); };
+    const r = new SRC(); r.lang = 'en-US'; r.interimResults = true; r.maxAlternatives = 3; r.continuous = false;
+    r.onresult = e => { for (const result of e.results) for (const alt of result) { const t = alt.transcript.toLowerCase(); if (/\b(stop|quit|enough)\b/.test(t)) return fin('stop'); if (/\b(again|no|repeat|missed|wrong)\b/.test(t)) return fin(0); if (/\b(good|yes|got it|had it|right|next|correct)\b/.test(t)) return fin(2); } };
+    r.onerror = () => fin(null); r.onend = () => fin(null);
+    const t = setTimeout(() => fin(null), ms);
+    try { r.start(); } catch (e) { fin(null); }
+  });
+}
+async function micOpen() {
+  if (MIC.stream) return true;
+  if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) { MIC.ok = false; return false; }
+  try { MIC.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); MIC.ok = true; return true; }
+  catch (e) { MIC.ok = false; return false; }
+}
+function micRecord(seconds, onLevel) {
+  return new Promise(res => {
+    const ctx = ac(); if (!ctx || !MIC.stream) return res(null);
+    const src = ctx.createMediaStreamSource(MIC.stream), proc = ctx.createScriptProcessor(4096, 1, 1), chunks = [];
+    proc.onaudioprocess = e => { const d = e.inputBuffer.getChannelData(0); chunks.push(new Float32Array(d)); if (onLevel) { let s = 0; for (let i = 0; i < d.length; i += 8) s += d[i] * d[i]; onLevel(Math.sqrt(s / (d.length / 8))); } };
+    src.connect(proc); proc.connect(ctx.destination);
+    MIC.stopNow = () => finish();
+    let done = false; const t = setTimeout(finish, seconds * 1000);
+    function finish() { if (done) return; done = true; clearTimeout(t); try { proc.disconnect(); src.disconnect(); } catch (e) { } const len = chunks.reduce((a, c) => a + c.length, 0), x = new Float32Array(len); let o = 0; chunks.forEach(c => { x.set(c, o); o += c.length; }); res({ x, sr: ctx.sampleRate }); }
+  });
+}
+function tuneScore(vi, mine) { const r = refSamples(vi); if (!r || !mine) return null; const A = semis(pitchTrack(r.x, r.sr)), B = semis(pitchTrack(mine.x, mine.sr)); if (A.length < 8 || B.length < 8) return { score: null, A, B }; const d = dtw(A, B); const Bal = A.map(() => null); d.path.forEach(([i, j]) => { Bal[i] = B[j]; }); return { score: d.score, A, B: Bal.map((y, i) => y === null ? A[i] : y) }; }
+
+// ---------- rendering helpers ----------
+function heWord(w, mode) { return mode === 'scroll' ? w.s : mode === 'notrop' ? w.n : mode === 'novowel' ? w.m : w.p; }
+function tlHtml(tr, stressIdxFromEnd) {
+  if (!tr) return '';
+  const segs = String(tr).split('-');
+  return segs.map((seg, si) => {
+    const syl = seg.split('·'); const last = si === segs.length - 1;
+    return syl.map((s, i) => {
+      let star = s.startsWith('*'); let t = s.replace('*', '');
+      if (stressIdxFromEnd !== undefined) star = last && (syl.length - 1 - i) === stressIdxFromEnd;
+      t = esc(t).replace(/ᵉ/g, '<sup>e</sup>');
+      return star ? `<b>${t.toUpperCase().replace('<SUP>E</SUP>', '<sup>e</sup>')}</b>` : t;
+    }).join('·');
+  }).join(' ');
+}
+function scrollLine(v, hiWi, hiRange) {
+  return v.words.map((w, wi) => { const on = wi === hiWi || (hiRange && wi >= hiRange[0] && wi <= hiRange[1]); return `<span class="sw${on ? ' tgt' : ''}">${esc(w.s)}</span>`; }).join(' ');
+}
+function tropName(t) { return (D.meta.trop[t] || { name: t }).name; }
+function glyph(t) { return `<span class="gl" dir="rtl">◌${GLYPH[t] || ''}</span>`; }
+function phraseOf(v, wi) { const c = v.chunks.find(c => wi >= c[0] && wi <= c[1]); return c ? v.words.slice(c[0], c[1] + 1).map(w => tropName(w.t)).join(' → ') : ''; }
+function wrapCluster(text, si, ci) {
+  const segs = text.split('־');
+  return segs.map((seg, k) => {
+    if (k !== si) return esc(seg);
+    let out = '', idx = -1, open = false;
+    for (const ch of seg.normalize('NFD')) {
+      if (isLetter(ch)) { if (open) { out += '</span>'; open = false; } idx++; if (idx === ci) { out += '<span class="hl">'; open = true; } }
+      out += esc(ch);
+    }
+    if (open) out += '</span>';
+    return out;
+  }).join('־');
+}
+
+// ---------- practice ----------
+let cur = null, extraMode = false, advTimer = null;
+function statsLine() {
+  const d = S.days[todayStr()] || { n: 0, ok: 0, nw: 0 };
+  const due = dueCards(Date.now(), 0).length, nq = newQueue().length;
+  const pct = d.n ? Math.round(100 * d.ok / d.n) : 0;
+  return `<span><b>${d.n}</b> answered today${d.n ? ` · <b>${pct}%</b> right` : ''}</span><span><b>${due}</b> due</span><span><b>${nq}</b> new ${nq === 1 ? 'pasuk' : 'pesukim'} to learn</span>`;
+}
+function renderPractice() {
+  const focusChips = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(a => `<button class="chip${S.set.focus === a ? ' on' : ''}" data-focus="${a}">${a ? D.meta.aliyos[a - 1].name.replace(' (Chanukah)', '') : 'Everything'}</button>`).join('');
+  $('#view').innerHTML = `<section class="band practice">
+    <div class="stats" id="stats">${statsLine()}</div>
+    <div class="focus scroll" aria-label="Practice focus">${focusChips}</div>
+    <div id="stage" class="stage"></div>
+  </section>`;
+  $$('[data-focus]').forEach(b => b.onclick = () => { S.set.focus = +b.dataset.focus; save(); renderPractice(); });
+  next();
+}
+function next() {
+  clearTimeout(advTimer);
+  const st = $('#stats'); if (st) st.innerHTML = statsLine();
+  const now = Date.now();
+  const due = dueCards(now).length; const nq = newQueue();
+  if (nq.length && ((due <= 1 && sinceNew >= 2) || (sinceNew >= 8 && due < 25))) { sinceNew = 0; return showLearn(nq[0]); }
+  if (due) extraMode = false;
+  const id = pickCard(extraMode);
+  if (!id) {
+    if (nq.length) { sinceNew = 0; return showLearn(nq[0]); }
+    return showDone();
+  }
+  sinceNew++;
+  cur = { id, t0: Date.now() };
+  recent.push({ t: id[0], vs: cardVerses(id) }); if (recent.length > 6) recent.shift();
+  const k = id[0];
+  ({ R: cardRead, T: cardTrop, H: cardHavara, S: cardStress, N: cardSheva, P: cardPattern, X: cardNext, L: cardLook, K: cardSpecial, W: cardWord })[k](id);
+}
+function showDone() {
+  const upcoming = Object.values(S.cards).filter(c => c.d > Date.now()).sort((a, b) => a.d - b.d)[0];
+  const when = upcoming ? new Date(upcoming.d) : null;
+  const hasCards = Object.keys(S.cards).length > 0;
+  $('#stage').innerHTML = `<div class="card done">
+    <h2>${hasCards ? "You're caught up for now" : 'Ready to start'}</h2>
+    <p>${hasCards ? `Nothing is due right now${when ? `; the next review comes up around <b>${when.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</b>` : ''}. Short sessions spread through the day beat one long one: your memory gets a chance to fade a little, and pulling it back is what makes it stick.` : 'Your plan unlocks today\'s pesukim. Each new pasuk starts with a short learning screen, then the app tests you on it from different angles.'}</p>
+    <div class="row"><button class="btn primary" id="extra">${hasCards ? 'Extra round on my weakest' : 'Start'}</button>${S.ahead < 3 ? '<button class="btn" id="ahead">Learn ahead: unlock tomorrow\'s pesukim</button>' : ''}</div>
+  </div>`;
+  $('#extra').onclick = () => { extraMode = hasCards; next(); };
+  const ah = $('#ahead'); if (ah) ah.onclick = () => { S.ahead = (S.ahead || 0) + 1; save(); next(); };
+}
+function head(kicker, vi) { const v = V[vi]; return `<div class="kicker"><span>${kicker}</span><span>${esc(aliName(v.a))} · ${esc(v.ref)}</span></div>`; }
+function showLearn(vi) {
+  const v = V[vi], nq = newQueue(), hasA = !!segOf(vi);
+  let mode = 'full';
+  const draw = () => {
+    $('#lv').innerHTML = v.words.map((w, wi) => `<span class="w ${S.set.colors ? lvlClass(w.lvl) : ''}">${esc(heWord(w, mode))}${mode !== 'scroll' ? `<small>${esc(tropName(w.t))}</small>` : ''}</span>${v.chunks.some(c => c[1] === wi) && wi < v.words.length - 1 ? '<span class="bar" aria-hidden="true"></span>' : ''}`).join(' ');
+    $$('#lmodes button').forEach(b => b.classList.toggle('on', b.dataset.m === mode));
+  };
+  $('#stage').innerHTML = `<div class="card learn">
+    ${head(`New pasuk · ${nq.length} left today`, vi)}
+    ${v.story ? `<p class="story">${esc(v.story)}</p>` : ''}
+    <div class="he big" dir="rtl" lang="he" id="lv"></div>
+    <div class="tl" id="ltl" hidden>${v.words.map(w => tlHtml(w.tr)).join(' &nbsp;')}</div>
+    <div class="seg" id="lmodes"><button data-m="full">All marks</button><button data-m="notrop">No trop</button><button data-m="novowel">No vowels</button><button data-m="scroll">Scroll</button></div>
+    <ol class="steps"><li>Read it twice with all the marks${hasA ? ', along with Rabbi Fessel' : ''}.</li><li>Hide the trop and sing it again from memory.</li><li>Switch to Scroll and read it from the bare letters.</li></ol>
+    <div class="row">${hasA ? '<button class="btn" id="lplay">▶ Hear it</button>' : ''}<button class="btn" id="ltlb">Pronunciation</button><button class="btn primary" id="lgo">I've got it, test me</button></div>
+  </div>`;
+  draw();
+  $$('#lmodes button').forEach(b => b.onclick = () => { mode = b.dataset.m; draw(); });
+  $('#ltlb').onclick = () => { $('#ltl').hidden = !$('#ltl').hidden; };
+  if (hasA) $('#lplay').onclick = () => playVerse(vi);
+  $('#lgo').onclick = () => { learnVerse(vi); next(); };
+}
+function feedback(ok, html, id, q) {
+  const fb = document.createElement('div');
+  fb.className = 'fb ' + (ok ? 'ok' : 'bad');
+  fb.innerHTML = `<div class="verdict">${ok ? '✓ Right' : '✗ Not quite'}</div><div>${html}</div><div class="row"><button class="btn primary" id="nx">Next</button></div>`;
+  $('#stage .card').appendChild(fb);
+  $$('#stage .opt').forEach(b => b.disabled = true);
+  grade(id, q);
+  $('#nx').onclick = next; $('#nx').focus({ preventScroll: true });
+  fb.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  if (ok) { advTimer = setTimeout(next, 1700); fb.addEventListener('pointerdown', () => clearTimeout(advTimer)); }
+}
+function mcq(id, vi, kicker, question, contextHtml, options, correctIdx, explain, opts = {}) {
+  const order = shuffle(options.map((o, i) => i));
+  $('#stage').innerHTML = `<div class="card">
+    ${head(kicker, vi)}
+    ${contextHtml}
+    <p class="q">${question}</p>
+    <div class="opts ${opts.he ? 'he-opts' : ''}">${order.map((i, k) => `<button class="opt" data-i="${i}"><span class="k">${k + 1}</span><span class="o" ${opts.he ? 'dir="rtl" lang="he"' : ''}>${options[i]}</span></button>`).join('')}</div>
+  </div>`;
+  $$('#stage .opt').forEach(b => b.onclick = () => {
+    const i = +b.dataset.i, ok = i === correctIdx;
+    b.classList.add(ok ? 'right' : 'wrong');
+    if (!ok) $(`#stage .opt[data-i="${correctIdx}"]`).classList.add('right');
+    const fast = Date.now() - cur.t0 < 3500;
+    if (opts.onAnswer) opts.onAnswer(ok);
+    feedback(ok, explain(ok, i), id, ok ? ((fast && S.cards[id] && S.cards[id].r > 0) ? 3 : 2) : 0);
+  });
+}
+function pickWord(v, kind, ws) {
+  const list = quizWords(v, kind); if (!list.length) return null;
+  return pickW(list, w => { const s = S.ws[v.vi + ':' + w.wi]; let x = 1 + (s ? s[1] * 3 : 0) - (s ? Math.min(s[0], 3) * 0.2 : 0); if (kind === 'T' && w.lvl !== 9 && w.lvl >= 3) x += 1; if (kind === 'T' && ['shalsheles', 'pazer', 'telisha_gedola', 'yesiv', 'segol', 'zarka', 'munach_legarmeh', 'gershayim', 'geresh', 'zakef_godol'].includes(w.t)) x += 2; if (kind === 'S' && w.st === 1) x += 1; return Math.max(0.2, x * (ws || 1)); });
+}
+function tropQuiz(id, vi, w, kicker) {
+  const v = V[vi], t = w.t;
+  const pool = [...(CONF[t] || []), ...shuffle([...COMMON])].filter((x, i, a) => x !== t && a.indexOf(x) === i);
+  const opts = [t, ...shuffle(pool.slice(0, 4)).slice(0, 3)];
+  mcq(id, vi, kicker, 'Which trop is on the highlighted word?', `<div class="ctx he" dir="rtl" lang="he">${scrollLine(v, w.wi)}</div>`,
+    opts.map(o => `${glyph(o)} ${esc(tropName(o))}`), 0,
+    () => `<div class="ans he" dir="rtl" lang="he">${esc(w.p)}</div><p><b>${esc(tropName(t))}</b>: ${esc(ROLE[t] || '')}</p><p class="muted">This phrase: ${esc(phraseOf(v, w.wi))}</p>`,
+    { onAnswer: ok => wordStat(vi, w.wi, ok) });
+}
+function cardTrop(id) { const vi = +id.split(':')[1]; tropQuiz(id, vi, pickWord(V[vi], 'T'), 'Trop'); }
+function havaraQuiz(id, vi, w, kicker) {
+  const v = V[vi]; const dx = shuffle([...w.dx]).slice(0, 3); const opts = [w.n, ...dx];
+  mcq(id, vi, kicker, 'How do you read the highlighted word?', `<div class="ctx he" dir="rtl" lang="he">${scrollLine(v, w.wi)}</div>`,
+    opts.map(esc), 0,
+    (ok, i) => `<div class="ans he" dir="rtl" lang="he">${esc(w.n)}</div><p class="tl">${tlHtml(w.tr)}</p>${ok ? '' : `<p>${esc(explainDiff(w.n.split('־').pop(), opts[i].split('־').pop()))}</p>`}`,
+    { he: true, onAnswer: ok => wordStat(vi, w.wi, ok) });
+}
+function cardHavara(id) { const vi = +id.split(':')[1]; havaraQuiz(id, vi, pickWord(V[vi], 'H'), 'Vowels'); }
+function stressQuiz(id, vi, w, kicker) {
+  const v = V[vi];
+  const mil = tlHtml(w.tr, 1), mlr = tlHtml(w.tr, 0);
+  const correct = w.st === 1 ? 0 : 1;
+  const vay = w.st === 1 && /^וַ/.test(w.n) && w.ns >= 3;
+  mcq(id, vi, kicker, 'Where does the stress fall on the highlighted word?', `<div class="ctx he" dir="rtl" lang="he">${scrollLine(v, w.wi)}</div><div class="ans he" dir="rtl" lang="he">${esc(w.n)}</div>`,
+    [`<span class="tl">${mil}</span><small>Mil'eil: next-to-last syllable</small>`, `<span class="tl">${mlr}</span><small>Milra: last syllable</small>`], correct,
+    () => `<p>${w.st === 1 ? "<b>Mil'eil</b>: the stress is on the next-to-last syllable." : '<b>Milra</b>: the stress is on the last syllable.'} The trop sits on the stressed syllable: <span class="he inl" dir="rtl" lang="he">${esc(w.p)}</span></p>${vay ? '<p class="muted">Many "vay-" past-tense verbs pull the stress back like this.</p>' : ''}`,
+    { onAnswer: ok => wordStat(vi, w.wi, ok) });
+}
+function cardStress(id) { const vi = +id.split(':')[1]; stressQuiz(id, vi, pickWord(V[vi], 'S'), 'Stress'); }
+function cardSheva(id) {
+  const vi = +id.split(':')[1], v = V[vi]; const w = pickWord(v, 'N');
+  const cands = w.sh.filter(s => s[3] !== 'start' && SHEVA_RULE[s[3]]); const sh = cands[rnd(cands.length)];
+  mcq(id, vi, 'Sheva', 'The highlighted letter has a sheva. Is it said or silent?', `<div class="ctx he" dir="rtl" lang="he">${scrollLine(v, w.wi)}</div><div class="ans he big" dir="rtl" lang="he">${wrapCluster(w.n, sh[0], sh[1])}</div>`,
+    ['Said: a quick "e" (sheva na)', 'Silent (sheva nach)'], sh[2] ? 0 : 1,
+    () => `<p>${esc(SHEVA_RULE[sh[3]])}</p><p class="tl">${tlHtml(w.tr)}</p>`, { onAnswer: ok => wordStat(vi, w.wi, ok) });
+}
+function cardPattern(id) {
+  const vi = +id.split(':')[1], v = V[vi];
+  const chunks = v.chunks.filter(c => c[1] > c[0]);
+  const ch = pickW(chunks, c => 1 + v.words.slice(c[0], c[1] + 1).filter(w => w.lvl >= 3 && w.lvl <= 4).length);
+  const seq = v.words.slice(ch[0], ch[1] + 1).map(w => w.t);
+  const fmt = s => s.map(t => esc(tropName(t))).join(' → ');
+  const outs = [fmt(seq)]; let guard = 0;
+  while (outs.length < 4 && guard++ < 60) { const s = [...seq]; const k = rnd(s.length); const alt = (CONF[s[k]] || COMMON)[rnd((CONF[s[k]] || COMMON).length)]; s[k] = alt; const f = fmt(s); if (!outs.includes(f)) outs.push(f); }
+  mcq(id, vi, 'Tune pattern', 'Sing the highlighted phrase in your head. Which tune pattern is it?', `<div class="ctx he" dir="rtl" lang="he">${scrollLine(v, -1, ch)}</div>`,
+    outs, 0, () => `<div class="ans he" dir="rtl" lang="he">${v.words.slice(ch[0], ch[1] + 1).map(w => esc(w.p)).join(' ')}</div>`);
+}
+function cardNext(id) {
+  const vi = +id.split(':')[1], v = V[vi], nv = V[vi + 1];
+  const open = x => esc(V[x].words.slice(0, 3).map(w => w.s).join(' '));
+  const sameAli = ALI[v.a].filter(x => x !== vi + 1 && x !== vi);
+  const pool = shuffle(sameAli.length >= 3 ? sameAli : V.map(x => x.vi).filter(x => x !== vi + 1 && x !== vi)).slice(0, 3);
+  const end = v.words.slice(-4).map(w => w.s).join(' ');
+  const boundary = nv.a !== v.a;
+  mcq(id, vi, boundary ? 'Aliyah boundary' : 'What comes next', boundary ? `This pasuk ends ${esc(aliName(v.a))}. How does ${esc(aliName(nv.a))} begin?` : 'What are the next words?',
+    `<div class="ctx he" dir="rtl" lang="he">… ${esc(end)}</div>`, [open(vi + 1), ...pool.map(open)].map(o => `<span dir="rtl" lang="he" class="he">${o} …</span>`), 0,
+    () => `<div class="ans he" dir="rtl" lang="he">${nv.words.slice(0, 5).map(w => esc(w.p)).join(' ')} …</div>${nv.story ? `<p class="muted">${esc(nv.story)}</p>` : ''}`);
+}
+function cardLook(id) {
+  const [, ti, fi] = id.split(':').map(Number); const t = TRAPS[ti], f = t.f[fi];
+  const occ = f.at.filter(a => S.learned[a[0]]); const [vi, wi] = occ[rnd(occ.length)]; const v = V[vi];
+  const forms = t.f.map(x => x.n);
+  const where = t.f.map(x => `<span class="he inl" dir="rtl" lang="he">${esc(x.n)}</span> ${x.at.slice(0, 3).map(a => esc(V[a[0]].ref)).join(', ')}${x.at.length > 3 ? ` +${x.at.length - 3}` : ''}`).join(' · ');
+  mcq(id, vi, 'Look-alike', `The scroll shows <span class="he inl" dir="rtl" lang="he">${esc(t.sk)}</span>. How is it read <i>here</i>?`, `<div class="ctx he" dir="rtl" lang="he">${scrollLine(v, wi)}</div>`,
+    forms.map(esc), fi, () => `<p>${esc(TRAP_NOTE[t.sk] || 'Same letters, different reading.')}</p><p class="muted">In your leining: ${where}</p>`,
+    { he: true, onAnswer: ok => wordStat(vi, wi, ok) });
+}
+function cardSpecial(id) {
+  if (id === 'K:kq') {
+    const vi = VK['G39:20'];
+    return mcq(id, vi, 'Kri / ksiv', 'The scroll has <span class="he inl" dir="rtl" lang="he">אסורי</span>. What do you read?', `<div class="ctx he" dir="rtl" lang="he">${scrollLine(V[vi], 8)}</div>`,
+      ['אֲסִירֵי', 'אֲסוּרֵי'], 0, () => '<p>Written אסורי (ksiv), read <b>אֲסִירֵי</b> (asirei, kri): "the place where the king\'s prisoners were held".</p>', { he: true });
+  }
+  if (id === 'K:shal') { const vi = VK['G39:8']; return tropQuiz(id, vi, V[vi].words[0], 'The Shalsheles'); }
+}
+function cardWord(id) {
+  const [, vi, wi] = id.split(':').map(Number); const w = V[vi].words[wi];
+  const kinds = []; if (w.dx && w.dx.length >= 3 && !w.dv) kinds.push('H'); if (w.t && wi < V[vi].words.length - 1) kinds.push('T'); if (!w.dv && w.ns >= 2) kinds.push('S');
+  const k = kinds.length ? kinds[(S.cards[id].s || 0) % kinds.length] : null;
+  if (k === 'H') return havaraQuiz(id, vi, w, 'Trouble word');
+  if (k === 'S') return stressQuiz(id, vi, w, 'Trouble word');
+  if (k === 'T') return tropQuiz(id, vi, w, 'Trouble word');
+  grade(id, 2); next();
+}
+function cardRead(id) {
+  const vi = +id.split(':')[1], v = V[vi]; let peek = 0; const hasA = !!segOf(vi);
+  $('#stage').innerHTML = `<div class="card read">
+    ${head('Read from the scroll', vi)}
+    <p class="q">Lein this pasuk out loud from the bare letters, with the tune. Then check yourself.</p>
+    <div class="he scrolltext" dir="rtl" lang="he" id="rs">${v.words.map(w => `<span class="sw">${esc(w.s)}</span>`).join(' ')}</div>
+    ${LIVE && hasA ? '<div class="row"><button class="btn primary" id="recme">Record me leining it</button></div><div id="recout"></div>' : ''}
+    <div class="row"><button class="btn" id="pk1">Peek trop</button><button class="btn" id="pk2">Peek vowels</button><button class="btn ${LIVE && hasA ? '' : 'primary'}" id="rv">Show answer</button></div>
+  </div>`;
+  let preTune = null;
+  const rb = $('#recme');
+  if (rb) rb.onclick = async () => {
+    rb.disabled = true; const out = $('#recout');
+    if (!(await micOpen())) { out.innerHTML = '<p class="muted">The microphone isn\'t available. Allow it in the browser and try again.</p>'; rb.disabled = false; return; }
+    const sg = segOf(vi), len = Math.min(45, (sg.t1 - sg.t0) * 1.5 + 1.5);
+    out.innerHTML = `<p><b>Lein now.</b> Tap Done when you finish. <button class="btn sm" id="stopRec">Done</button></p><div class="meter"><i id="lvl"></i></div>`;
+    $('#stopRec').onclick = () => MIC.stopNow && MIC.stopNow();
+    const mine = await micRecord(len, l => { const e = $('#lvl'); if (e) e.style.width = Math.min(100, l * 400) + '%'; });
+    micClose();
+    preTune = mine; $('#rv').click();
+  };
+  $('#pk1').onclick = () => { peek = Math.max(peek, 1); $('#rs').innerHTML = v.words.map(w => `<span class="sw">${esc(w.m)}</span>`).join(' '); };
+  $('#pk2').onclick = () => { peek = 2; $('#rs').innerHTML = v.words.map(w => `<span class="sw">${esc(w.n)}</span>`).join(' '); };
+  $('#rv').onclick = () => {
+    const miss = new Set();
+    $('#stage .card').innerHTML = `${head('Check yourself', vi)}
+      <p class="q">Tap every word you got wrong: a vowel, the stress, or the trop.</p>
+      <div class="he big tapwords" dir="rtl" lang="he">${v.words.map((w, wi) => `<button class="tw ${S.set.colors ? lvlClass(w.lvl) : ''}" data-wi="${wi}">${esc(w.p)}<small>${esc(tropName(w.t))}</small></button>`).join(' ')}</div>
+      ${hasA ? `<div id="tuneout"></div><div class="row"><button class="btn" id="hear">▶ Hear Rabbi Fessel</button>${preTune ? '' : '<button class="btn" id="tune">Check my tune</button>'}</div>` : ''}
+      <div class="grades"><button class="btn g0" data-q="0">Needed help</button><button class="btn g1" data-q="1">Small slips</button><button class="btn g2" data-q="2" ${peek ? 'disabled title="You peeked, so the best grade is Small slips"' : ''}>Clean</button></div>`;
+    $$('.tw').forEach(b => b.onclick = () => { const wi = +b.dataset.wi; if (miss.has(wi)) miss.delete(wi); else miss.add(wi); b.classList.toggle('miss'); const g2 = $('.g2'); if (g2) g2.disabled = !!peek || miss.size > 0; });
+    if (hasA) { $('#hear').onclick = () => playVerse(vi); const tb = $('#tune'); if (tb) tb.onclick = () => tuneCheck(vi, $('#tuneout')); if (preTune) showTune(vi, preTune, $('#tuneout')); }
+    $$('.grades button').forEach(b => b.onclick = () => {
+      const q = +b.dataset.q; miss.forEach(wi => wordStat(vi, wi, false));
+      v.words.forEach((w, wi) => { if (!miss.has(wi)) { const k = vi + ':' + wi; if (S.ws[k]) S.ws[k][0]++; } });
+      grade(id, q); next();
+    });
+  };
+}
+async function tuneCheck(vi, out) {
+  out.innerHTML = '<p class="muted">Preparing…</p>';
+  const r = refSamples(vi); if (!r) { out.innerHTML = ''; return; }
+  const live = await micOpen();
+  if (live) {
+    const len = Math.min(40, (segOf(vi).t1 - segOf(vi).t0) * 1.4 + 1);
+    out.innerHTML = `<p><b>Sing the pasuk now.</b> Listening for ${Math.round(len)} seconds… <button class="btn sm" id="stopRec">Done</button></p><div class="meter"><i id="lvl"></i></div>`;
+    $('#stopRec').onclick = () => MIC.stopNow && MIC.stopNow();
+    const mine = await micRecord(len, l => { const e = $('#lvl'); if (e) e.style.width = Math.min(100, l * 400) + '%'; });
+    micClose();
+    return showTune(vi, mine, out);
+  }
+  out.innerHTML = `<p class="muted">This view can't use the microphone. Record yourself singing just this pasuk with your phone's voice recorder, then load it here.</p><label class="btn file">Load my recording<input type="file" accept="audio/*" id="myrec" hidden></label>`;
+  $('#myrec').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const b = await ac().decodeAudioData((await f.arrayBuffer()).slice(0)); showTune(vi, { x: b.getChannelData(0), sr: b.sampleRate }, out); } catch (err) { out.innerHTML = '<p class="muted">That file could not be read.</p>'; } };
+}
+function showTune(vi, mine, out) {
+  const t = tuneScore(vi, mine);
+  if (!t || t.score === null) { out.innerHTML = '<p class="muted">Not enough singing was picked up to compare. Try again a little louder, closer to the phone.</p>'; return t; }
+  const good = t.score >= 65;
+  out.innerHTML = `<div class="fb ${good ? 'ok' : 'bad'}"><div class="verdict">Tune match ${t.score}</div><div>${t.score >= 80 ? 'Your melody follows his closely.' : good ? 'Close. A few spots rise or fall differently from his.' : 'The shape of your melody drifts from his. Listen again and copy the rises and falls.'}</div>${contourSvg(t.A, t.B)}<p class="muted"><span class="key ref"></span> Rabbi Fessel &nbsp; <span class="key mine"></span> you. The match compares the shape of the melody, so your own key is fine.</p></div>`;
+  return t;
+}
+
+// ---------- tikkun ----------
+let rehearsal = null;
+function renderTikkun() {
+  $('#sheet').hidden = true;
+  const a = S.set.tikA || 1;
+  const vis = ALI[a];
+  const m = S.set.mode;
+  const modes = [['full', 'All marks'], ['notrop', 'No trop'], ['novowel', 'No vowels'], ['scroll', 'Scroll']];
+  $('#view').innerHTML = `<section class="band">
+    <div class="focus scroll">${D.meta.aliyos.map(x => `<button class="chip${x.n === a ? ' on' : ''}" data-a="${x.n}">${esc(x.name.replace(' (Chanukah)', ''))}</button>`).join('')}</div>
+    <div class="seg">${modes.map(([k, l]) => `<button data-m="${k}" class="${m === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+    <div class="toggles"><label><input type="checkbox" id="tnames" ${S.set.names ? 'checked' : ''}> Trop names</label><label><input type="checkbox" id="tcol" ${S.set.colors ? 'checked' : ''}> Colors</label><label><input type="checkbox" id="ttr" ${S.set.tr ? 'checked' : ''}> Pronunciation</label><label><input type="checkbox" id="treh" ${rehearsal ? 'checked' : ''}> Rehearsal (tap mistakes)</label></div>
+    ${rehearsal ? `<div class="note">Rehearsal: lein straight through. You, or someone following along, taps each word that was wrong. <button class="btn sm primary" id="rehdone">Finish (${rehearsal.size} marked)</button></div>` : ''}
+    <h2 class="aliyah">${esc(D.meta.aliyos[a - 1].name)} <span class="muted">${esc(D.meta.aliyos[a - 1].book)} ${esc(D.meta.aliyos[a - 1].from)}–${esc(D.meta.aliyos[a - 1].to)}</span></h2>
+    ${a === 8 ? '<p class="note">Maftir is read from the second sefer Torah. Shabbos Chanukah, first day: Bamidbar 7:1–17.</p>' : ''}
+    <div class="tikkun ${m === 'scroll' ? 'is-scroll' : ''}">${vis.map(vi => verseHtml(V[vi], m)).join('')}</div>
+  </section>`;
+  $$('[data-a]').forEach(b => b.onclick = () => { S.set.tikA = +b.dataset.a; save(); renderTikkun(); });
+  $$('.seg [data-m]').forEach(b => b.onclick = () => { S.set.mode = b.dataset.m; save(); renderTikkun(); });
+  $('#tnames').onchange = e => { S.set.names = e.target.checked; save(); renderTikkun(); };
+  $('#tcol').onchange = e => { S.set.colors = e.target.checked; save(); renderTikkun(); };
+  $('#ttr').onchange = e => { S.set.tr = e.target.checked; save(); renderTikkun(); };
+  $('#treh').onchange = e => { rehearsal = e.target.checked ? new Set() : null; renderTikkun(); };
+  const rd = $('#rehdone'); if (rd) rd.onclick = () => { rehearsal.forEach(k => { const [vi, wi] = k.split(':').map(Number); if (S.learned[vi]) wordStat(vi, wi, false); else { S.trouble[k] = (S.trouble[k] || 0) + 1; } }); const n = rehearsal.size; rehearsal = null; save(); renderTikkun(); toast(`${n} word${n === 1 ? '' : 's'} added to your trouble list`); };
+  $$('.tikkun .w').forEach(el => el.onclick = () => {
+    const k = el.dataset.k;
+    if (rehearsal) { if (rehearsal.has(k)) rehearsal.delete(k); else rehearsal.add(k); el.classList.toggle('miss'); const rb = $('#rehdone'); if (rb) rb.textContent = `Finish (${rehearsal.size} marked)`; return; }
+    const [vi, wi] = k.split(':').map(Number); wordSheet(vi, wi);
+  });
+  $$('.tikkun [data-play]').forEach(b => b.onclick = e => { e.stopPropagation(); playVerse(+b.dataset.play); });
+}
+function verseHtml(v, m) {
+  const names = S.set.names && m !== 'scroll';
+  const brk = v.brk === 'P' ? '<div class="brk">open section break (פתוחה)</div>' : v.brk === 'S' ? '<div class="brk">closed section break (סתומה)</div>' : '';
+  const hasA = !!segOf(v.vi);
+  return `${v.story ? `<p class="story">${esc(v.story)}</p>` : ''}<div class="pv"><div class="vn">${esc(v.ref)}${hasA ? ` <button class="mini" data-play="${v.vi}" aria-label="Play ${esc(v.ref)}">▶</button>` : ''}</div>
+    <div class="he" dir="rtl" lang="he">${v.words.map((w, wi) => `<span class="w ${S.set.colors && m !== 'scroll' ? lvlClass(w.lvl) : ''}${S.trouble[v.vi + ':' + wi] ? ' tr' : ''}" data-k="${v.vi}:${wi}">${esc(heWord(w, m))}${names ? `<small>${esc(tropName(w.t))}</small>` : ''}</span>`).join(' ')}</div>
+    ${S.set.tr && m !== 'scroll' ? `<div class="tl">${v.words.map(w => tlHtml(w.tr)).join(' &nbsp;')}</div>` : ''}</div>${brk}`;
+}
+function wordSheet(vi, wi) {
+  const v = V[vi], w = v.words[wi];
+  const shev = (w.sh || []).map(s => { const cl = clustersOf(w.n.split('\u05BE')[s[0]] || ''); const L = cl[s[1]] ? (LETTER[cl[s[1]][0]] || '') : ''; return `under the ${L}: ${s[2] ? 'said' : 'silent'}`; });
+  const trap = TRAPS.find(t => t.f.some(f => f.at.some(a => a[0] === vi && a[1] === wi)));
+  const notes = [];
+  if (w.kk) notes.push('Kri/ksiv: the scroll writes אסורי; you read אֲסִירֵי.');
+  if (w.hv) notes.push('The scroll writes הוא, but here you read it "hi" (she).');
+  if (w.t === 'shalsheles') notes.push("The parsha's only Shalsheles.");
+  if (w.dv) notes.push("Hashem's name: read it as in davening.");
+  if (w.pq) notes.push('A paseq line follows: a tiny break.');
+  if (trap) notes.push(TRAP_NOTE[trap.sk] || 'Same letters appear elsewhere with a different reading.');
+  const sh = $('#sheet');
+  sh.innerHTML = `<div class="sheet-in" role="dialog" aria-label="Word details">
+    <div class="row between"><span class="muted">${esc(aliName(v.a))} · ${esc(v.ref)}</span><button class="btn sm" id="shx">Close</button></div>
+    <div class="he huge" dir="rtl" lang="he">${esc(w.p)}</div>
+    <div class="grid2"><div><span class="muted">Scroll</span><div class="he scr" dir="rtl" lang="he">${esc(w.s)}</div></div><div><span class="muted">Trop</span><div>${glyph(w.t)} <b>${esc(tropName(w.t))}</b></div></div></div>
+    <p>${esc(ROLE[w.t] || '')}</p>
+    ${w.tr ? `<p><span class="muted">Say it:</span> <span class="tl">${tlHtml(w.tr)}</span>${w.st !== undefined && w.ns >= 2 ? ` <span class="muted">(${w.st === 1 ? "mil'eil" : 'milra'})</span>` : ''}</p>` : ''}
+    ${shev.length ? `<p><span class="muted">Shevas:</span> ${shev.join(', ')}</p>` : ''}
+    ${notes.map(n => `<p class="note">${esc(n)}</p>`).join('')}
+    <div class="row"><button class="btn" id="shtr">${S.trouble[vi + ':' + wi] ? 'On my trouble list' : 'Add to my trouble words'}</button></div>
+  </div>`;
+  sh.hidden = false;
+  $('#shx').onclick = () => { sh.hidden = true; };
+  $('#shtr').onclick = () => { const k = vi + ':' + wi; S.trouble[k] = (S.trouble[k] || 0) + 1; if (S.learned[vi]) mk('W:' + k, 1); save(); $('#shtr').textContent = 'On my trouble list'; };
+}
+function toast(t) { const el = $('#toast'); el.textContent = t; el.hidden = false; clearTimeout(el._t); el._t = setTimeout(() => el.hidden = true, 2600); }
+
+// ---------- plan ----------
+function mastery(vis) {
+  if (!vis.length) return 0;
+  let s = 0;
+  vis.forEach(vi => { const c = S.cards['R:' + vi]; if (!S.learned[vi]) return; s += c ? Math.min(1, 0.35 + Math.min(c.i, 2880) / 2880 * 0.65 - c.l * 0.05) : 0.3; });
+  return Math.round(100 * s / vis.length);
+}
+function renderPlan() {
+  const t = todayStr(), days = Math.max(0, Math.ceil((LEINING - Date.now()) / DAY));
+  const rows = PLAN.map(p => {
+    const vis = planVerses(p), learned = vis.filter(vi => S.learned[vi]).length;
+    const st = p.d < t ? 'past' : p.d === t ? 'today' : 'next';
+    const range = p.from ? `${V[VK[p.from]].ref} – ${V[VK[p.to]].ref}` : '';
+    return `<li class="day ${st}${p.rest ? ' rest' : ''}"><div class="dd">${esc(p.day)}${st === 'today' ? ' <b class="pill">Today</b>' : ''}</div><div><b>${esc(p.label)}</b>${range ? `<div class="muted">${esc(range)} · ${vis.length} pesukim${learned ? ` · ${learned} learned` : ''}</div>` : ''}</div></li>`;
+  }).join('');
+  const ali = D.meta.aliyos.map(x => { const m = mastery(ALI[x.n]); return `<div class="mrow"><span>${esc(x.name.replace(' (Chanukah)', ''))}</span><div class="mbar"><i style="width:${m}%"></i></div><b>${m}%</b></div>`; }).join('');
+  const tr = Object.entries(S.trouble).sort((a, b) => b[1] - a[1]).slice(0, 24);
+  $('#view').innerHTML = `<section class="band">
+    <h2>${days} day${days === 1 ? '' : 's'} to the leining</h2>
+    <p class="muted">Shabbos Chanukah, Dec 5. About an hour a day, split into two or three sittings, gets you there. The app decides what to ask; the plan decides what's new each day.</p>
+    <ol class="plan">${rows}</ol>
+    <h3>How well each aliyah is holding</h3>
+    <div class="mastery">${ali}</div>
+    <h3>Trouble words</h3>
+    ${tr.length ? `<div class="troubles he" dir="rtl" lang="he">${tr.map(([k, n]) => { const [vi, wi] = k.split(':').map(Number); return `<span class="tw2" title="${esc(V[vi].ref)}">${esc(V[vi].words[wi].p)}<small>${n}×</small></span>`; }).join('')}</div>` : '<p class="muted">None yet. Words you miss show up here and come back more often in practice.</p>'}
+    <h3>How the practice works</h3>
+    <ul class="how">
+      <li><b>Testing beats re-reading.</b> Each question makes you pull the answer out of memory, which is what builds it.</li>
+      <li><b>Spacing.</b> What you get right comes back later and later (minutes, hours, a day, two days); what you miss comes back within a couple of minutes, then again later.</li>
+      <li><b>Mixing.</b> Questions come in a weighted random order: different pesukim, different skills, never the same pasuk twice in a row. Your weakest items come up more.</li>
+      <li><b>Fading cues.</b> You learn each pasuk with all the marks, then without trop, then from the bare scroll, the way you'll see it on Shabbos.</li>
+      <li><b>Deadline aware.</b> Nothing gets scheduled past Friday, so every pasuk gets a final review before Shabbos.</li>
+    </ul>
+    <h3>Move my progress to another device</h3>
+    <p class="muted">The Claude app and the phone website keep separate progress. To carry it over, tap Copy here, open the other one, paste into this box there, and tap Load. Audio files stay on each device.</p>
+    <textarea id="xfer" rows="3" placeholder="Paste progress here" style="width:100%;font:14px monospace;border:1.5px solid var(--line);border-radius:10px;padding:8px;background:var(--bg);color:var(--ink)"></textarea>
+    <div class="row"><button class="btn" id="xcopy">Copy my progress</button><button class="btn" id="xload">Load pasted progress</button></div>
+    <div class="row"><button class="btn" id="reset">Reset all progress</button></div>
+  </section>`;
+  $('#xcopy').onclick = async () => { const j = JSON.stringify({ ...S, audio: {} }); $('#xfer').value = j; try { await navigator.clipboard.writeText(j); toast('Copied'); } catch (e) { $('#xfer').select(); toast('Selected: copy it from the box'); } };
+  $('#xload').onclick = () => { try { const j = JSON.parse($('#xfer').value); if (!j || j.v !== 1 || !j.cards) throw 0; const keepA = S.audio; S = Object.assign(S, j); S.audio = keepA; save(); toast('Progress loaded'); renderPlan(); } catch (e) { toast("That doesn't look like copied progress"); } };
+  $('#reset').onclick = () => { const b = $('#reset'); if (b.dataset.sure) { const keep = S.audio; S = { v: 1, upd: Date.now(), cards: {}, learned: {}, ws: {}, trouble: {}, days: {}, audio: keep, set: S.set, ahead: 0, car: {} }; save(); renderPlan(); toast('Progress reset'); } else { b.dataset.sure = 1; b.textContent = 'Tap again to erase all progress'; } };
+}
+
+// ---------- trop guide ----------
+function renderTrop() {
+  const count = {}, ex = {};
+  V.forEach(v => v.words.forEach(w => { count[w.t] = (count[w.t] || 0) + 1; if (!ex[w.t]) ex[w.t] = [v.vi, w.wi]; }));
+  const groups = [[0, 1, 'The big stops'], [2, 2, 'Strong pauses'], [3, 3, 'Middle pauses'], [4, 4, 'Small pauses'], [9, 9, 'Connectors (they carry you into the next stop)']];
+  const body = groups.map(([lo, hi, title]) => {
+    const items = Object.keys(count).filter(t => { const l = (D.meta.trop[t] || {}).lvl; return l >= lo && l <= hi; }).sort((a, b) => count[b] - count[a]);
+    if (!items.length) return '';
+    return `<h3>${title}</h3><div class="tlist">${items.map(t => { const [vi, wi] = ex[t]; return `<div class="trow ${lvlClass(D.meta.trop[t].lvl)}"><div class="tg">${glyph(t)}</div><div><b>${esc(tropName(t))}</b> <span class="he inl" dir="rtl" lang="he">${esc(D.meta.trop[t].heb)}</span><div class="muted">${esc(WHERE[t] || '')} · ${count[t]}× in your leining · first at <button class="link" data-go="${vi}">${esc(V[vi].ref)}</button></div><div>${esc(ROLE[t] || '')}</div></div></div>`; }).join('')}</div>`;
+  }).join('');
+  const hv = []; V.forEach(v => v.words.forEach(w => { if (w.hv) hv.push(v.ref); }));
+  $('#view').innerHTML = `<section class="band">
+    <h2>The trop in your leining</h2>
+    <p class="muted">Every pasuk is built the same way: connectors lead into a stop, small stops lead into bigger ones, and Esnachta and Sof Pasuk split the pasuk into two halves. Learn the tune of each little phrase (Mercha → Tipcha, Mahpach → Pashta, Munach → Zakef) and the pasuk sings itself.</p>
+    <div class="watch"><h3>Watch for these</h3><ul>
+      <li><b>Shalsheles</b> on וַיְמָאֵן, <button class="link" data-go="${VK['G39:8']}">39:8</button>: the only one in the parsha. Hold the long zig-zag note, then the small break.</li>
+      <li><b>Kri/ksiv</b> at <button class="link" data-go="${VK['G39:20']}">39:20</button>: the scroll writes אסורי; read <span class="he inl" dir="rtl" lang="he">אֲסִירֵי</span>.</li>
+      <li><b>הוא read "hi"</b> ${hv.length} times (${hv.map(esc).join(', ')}): the Torah writes הוא for "she" too. Watch the story: Tamar and Bas Shua are "hi".</li>
+      <li><b>אחיו</b>: "echov" (his brothers) or "ochiv" (his brother). Same letters in the scroll.</li>
+      <li><b>Pazer</b> ×${count.pazer || 0}, <b>Telisha Gedola</b> ×${count.telisha_gedola || 0}, <b>Yesiv</b> ×${count.yesiv || 0}, <b>Segol</b> ×${count.segol || 0}: rare enough to forget, so the practice asks about them more often.</li>
+      <li><b>Aliyah breaks</b>: know where each aliyah ends so you stop for the gabbai.</li>
+    </ul></div>
+    ${body}
+  </section>`;
+  $$('[data-go]').forEach(b => b.onclick = () => { const vi = +b.dataset.go; S.set.tikA = V[vi].a; save(); location.hash = '#tikkun'; setTimeout(() => wordSheet(vi, 0), 60); });
+}
+
+// ---------- audio view ----------
+function renderAudio() {
+  const rows = D.meta.aliyos.map(x => {
+    const a = x.n, au = S.audio[a], loaded = !!BUF[a];
+    const link = FESSEL[a] ? `<a href="https://www.torahdownloads.com/shiur-${FESSEL[a]}.html" target="_blank" rel="noopener">Rabbi Fessel's ${esc(x.name)}</a>` : '<span class="muted">No Fessel recording for the Chanukah maftir. Record your rav or a friend, or yourself once you have it right.</span>';
+    return `<div class="arow"><div><b>${esc(x.name)}</b> <span class="muted">${esc(x.from)}–${esc(x.to)}</span><div>${link}</div>
+      <div class="muted">${au ? (loaded ? `Loaded · ${Math.round(au.dur)} s · ${au.auto ? 'synced automatically' : 'synced by you'}` : 'Saved earlier; load the file again on this device') : 'Not loaded'}</div></div>
+      <div class="acts"><label class="btn file">${au ? 'Replace' : 'Load file'}<input type="file" accept="audio/*" data-load="${a}" hidden></label>${loaded ? `<button class="btn" data-check="${a}">Check sync</button>` : ''}</div></div>`;
+  }).join('');
+  $('#view').innerHTML = `<section class="band">
+    <h2>Rabbi Fessel's leining, pasuk by pasuk</h2>
+    <p>The app can't stream audio from another site, so load each aliyah once. Open the link, tap <b>Download</b> to save the MP3 to your phone, then tap <b>Load file</b> here and pick it. The app finds where each pasuk starts on its own. Use <b>Check sync</b> to listen to a few and nudge any that are off.</p>
+    <p class="muted">Once loaded, every pasuk gets a ▶ button, the practice can play his version after you read, and Car mode comes alive.</p>
+    <div class="alist">${rows}</div>
+    <div id="syncer"></div>
+    <h3>Speed</h3><div class="seg">${[1, 0.85, 0.7].map(r => `<button data-rate="${r}" class="${S.set.speed === r ? 'on' : ''}">${r === 1 ? 'Normal' : r + '×'}</button>`).join('')}</div>
+    <p class="muted">Slowed playback keeps the pitch, so the tune stays true.</p>
+  </section>`;
+  $$('[data-load]').forEach(inp => inp.onchange = async e => {
+    const f = e.target.files[0]; if (!f) return; const a = +inp.dataset.load;
+    toast('Reading the recording…');
+    try { await loadAudioFile(a, f); toast('Loaded and synced'); renderAudio(); syncer(a); $('#syncer').scrollIntoView({ behavior: 'smooth' }); } catch (err) { toast('That file could not be read as audio'); }
+  });
+  $$('[data-check]').forEach(b => b.onclick = () => syncer(+b.dataset.check));
+  $$('[data-rate]').forEach(b => b.onclick = () => { S.set.speed = +b.dataset.rate; save(); renderAudio(); });
+}
+function syncer(a) {
+  const au = S.audio[a], vis = ALI[a]; if (!au || !BUF[a]) return;
+  const el = $('#syncer');
+  el.innerHTML = `<div class="card"><h3>${esc(aliName(a))}: where each pasuk starts</h3><p class="muted">Tap ▶ to hear a pasuk from its start. If it begins early or late, nudge it.</p>
+    <div class="slist">${vis.map((vi, i) => `<div class="srow"><button class="btn sm" data-sp="${i}">▶ ${esc(V[vi].ref)}</button><span class="he" dir="rtl" lang="he">${esc(V[vi].words.slice(0, 3).map(w => w.n).join(' '))}</span><span class="tm">${au.marks[i].toFixed(1)} s</span><span><button class="btn sm" data-nd="${i}" data-by="-0.3">−</button><button class="btn sm" data-nd="${i}" data-by="0.3">+</button></span></div>`).join('')}</div>
+    <div class="row"><button class="btn" id="redo">Re-run the automatic sync</button><button class="btn" id="tap">Mark them myself by tapping</button></div><div id="tapper"></div></div>`;
+  $$('[data-sp]', el).forEach(b => b.onclick = () => { const i = +b.dataset.sp; playVerse(vis[i], 1); });
+  $$('[data-nd]', el).forEach(b => b.onclick = () => { const i = +b.dataset.nd; au.marks[i] = Math.max(0, au.marks[i] + +b.dataset.by); au.auto = false; save(); syncer(a); playVerse(vis[i], 1); });
+  $('#redo').onclick = () => { au.marks = autoSync(BUF[a], vis); au.auto = true; save(); syncer(a); };
+  $('#tap').onclick = () => {
+    const marks = []; const ctx = ac(); stopAudio();
+    const src = ctx.createBufferSource(); src.buffer = BUF[a]; src.connect(ctx.destination); const t0 = ctx.currentTime; src.start(); playing = src;
+    const show = () => { const k = marks.length; $('#tapper').innerHTML = `<div class="tapbox"><p>${k < vis.length ? `Tap when <b>${esc(V[vis[k]].ref)}</b> begins:` : 'All marked.'}</p>${k < vis.length ? `<div class="he big" dir="rtl" lang="he">${esc(V[vis[k]].words.slice(0, 4).map(w => w.n).join(' '))}</div><button class="btn primary big" id="tapnow">This pasuk starts now</button>` : ''}<button class="btn" id="tapstop">${k < vis.length ? 'Cancel' : 'Save'}</button></div>`; const tn = $('#tapnow'); if (tn) tn.onclick = () => { marks.push(Math.max(0, ctx.currentTime - t0 - 0.25)); show(); }; $('#tapstop').onclick = () => { stopAudio(); if (marks.length === vis.length) { au.marks = marks; au.auto = false; save(); } syncer(a); }; };
+    show();
+  };
+}
+
+// ---------- car mode ----------
+let CAR = null;
+function renderCar() {
+  const learned = Object.keys(S.learned).map(Number).filter(vi => segOf(vi));
+  const avail = unlockedVerses().filter(vi => segOf(vi));
+  const live = LIVE;
+  $('#view').innerHTML = `<section class="band car">
+    <h2>Car mode</h2>
+    <p>Hands-free practice. Set it up before you pull out and leave the phone in its mount; it runs on its own, and you never need to look at it.</p>
+    ${avail.length ? '' : '<p class="note">Load Rabbi Fessel\'s recordings on the Audio tab first. Car mode plays his pesukim.</p>'}
+    <div class="seg" id="cm"><button data-cm="listen" class="${S.set.carMode === 'listen' ? 'on' : ''}">Listen &amp; repeat</button><button data-cm="test" class="${S.set.carMode === 'test' ? 'on' : ''}">Test me</button></div>
+    <ul class="how">${S.set.carMode === 'listen'
+      ? '<li>Hear a pasuk, then a pause to sing it back. New and weak pesukim play twice.</li><li>Best for pesukim you learned today.</li>'
+      : '<li>You hear the end of the previous pasuk as your cue, then a beep: lein the next pasuk from memory.</li><li>A second beep, then Rabbi Fessel reads it so you can hear whether you had it.</li><li>The order is chosen by your spaced-repetition record: weakest and most-due first, mixed up.</li>'}</ul>
+    <label class="slider">Pause for your turn: <b id="pv">${S.set.pause.toFixed(2)}×</b> the pasuk's length<input type="range" min="1" max="1.8" step="0.05" value="${S.set.pause}" id="pause"></label>
+    <div class="carstage" id="carstage"><div class="big-state" id="cst">${CAR ? 'Running' : 'Ready'}</div><div class="he big" dir="rtl" lang="he" id="ctext"></div></div>
+    <div class="row"><button class="btn primary big" id="cgo" ${avail.length ? '' : 'disabled'}>${CAR ? 'Stop' : 'Start'}</button></div>
+    <div class="grades" id="cgrade" hidden><button class="btn g0" data-cg="0">Again</button><button class="btn g2" data-cg="2">Had it</button></div>
+    <p class="muted">${live ? 'This browser can use the microphone. While you lein, the app records you and scores your tune against Rabbi Fessel\'s. Then it asks "Good or again?" and listens for your answer. Say "stop" to end. If you don\'t answer, the tune score decides.' : 'Inside the Claude app the page can\'t hear you, so Car mode only plays and pauses. When you get home, the pesukim you struggled with will still come up in Practice. If your car\'s steering-wheel skip buttons reach the app, Next means "had it" and Back means "again".'}</p>
+    <p class="muted">${learned.length} learned ${learned.length === 1 ? 'pasuk has' : 'pesukim have'} audio.</p>
+  </section>`;
+  $$('[data-cm]').forEach(b => b.onclick = () => { S.set.carMode = b.dataset.cm; save(); renderCar(); });
+  $('#pause').oninput = e => { S.set.pause = +e.target.value; $('#pv').textContent = S.set.pause.toFixed(2) + '×'; save(); };
+  $('#cgo').onclick = () => { if (CAR) carStop(); else carStart(); };
+  $$('[data-cg]').forEach(b => b.onclick = () => CAR && CAR.answer && CAR.answer(+b.dataset.cg));
+}
+function carPick() {
+  let pool = Object.keys(S.learned).map(Number).filter(vi => segOf(vi) && (!S.set.focus || V[vi].a === S.set.focus));
+  if (S.set.carMode === 'listen' || !pool.length) { const un = unlockedVerses().filter(vi => segOf(vi)); if (!pool.length || S.set.carMode === 'listen') pool = pool.concat(un.filter(vi => !pool.includes(vi))); }
+  if (!pool.length) return null;
+  const now = Date.now();
+  return pickW(pool, vi => {
+    const c = S.cards['R:' + vi]; const heard = S.car[vi] || 0;
+    let w = 1; if (!c) w += 2; else { w += Math.min(3, Math.max(0, (now - c.d) / (Math.max(c.i, 10) * MIN))) + c.l * 0.8 + (c.e < 2 ? 1 : 0); }
+    if (CAR && CAR.recent.includes(vi)) w *= 0.05;
+    return w / (1 + heard * 0.15);
+  });
+}
+async function carStart() {
+  ac();
+  CAR = { on: true, recent: [], answer: null };
+  $('#cgo').textContent = 'Stop';
+  try { if (navigator.wakeLock) CAR.lock = await navigator.wakeLock.request('screen'); } catch (e) { }
+  const live = LIVE && await micOpen();
+  if (live) micClose();
+  try { if ('mediaSession' in navigator) { navigator.mediaSession.setActionHandler('nexttrack', () => CAR && CAR.answer && CAR.answer(2)); navigator.mediaSession.setActionHandler('previoustrack', () => CAR && CAR.answer && CAR.answer(0)); navigator.mediaSession.setActionHandler('pause', () => carStop()); } } catch (e) { }
+  await say(S.set.carMode === 'test' ? (live ? 'Car mode. After the beep, lein the next pasuk. I will tell you how your tune matched.' : 'Car mode. After the beep, lein the next pasuk.') : 'Car mode. Listen, then repeat.');
+  while (CAR && CAR.on) {
+    const vi = carPick(); if (vi === null) break;
+    CAR.recent.push(vi); if (CAR.recent.length > 4) CAR.recent.shift();
+    S.car[vi] = (S.car[vi] || 0) + 1;
+    const v = V[vi], seg = segOf(vi), len = seg.t1 - seg.t0;
+    const st = $('#cst'), tx = $('#ctext');
+    const setT = (s, t) => { if (st) st.textContent = s; if (tx) tx.textContent = t || ''; };
+    if (S.set.carMode === 'listen') {
+      const reps = S.cards['R:' + vi] && S.cards['R:' + vi].r > 1 ? 1 : 2;
+      for (let k = 0; k < reps && CAR && CAR.on; k++) {
+        setT(`${aliName(v.a)} · ${v.ref} · listen`, v.words.map(w => w.n).join(' '));
+        await playVerse(vi, 1); if (!CAR || !CAR.on) break;
+        setT('Your turn', v.words.map(w => w.s).join(' ')); await beep(880); await sleep(len * S.set.pause * 1000);
+      }
+      continue;
+    }
+    const prev = ALI[v.a].indexOf(vi) > 0 ? vi - 1 : null;
+    setT(`${aliName(v.a)} · ${v.ref}`, '');
+    await say(prev === null ? `${aliName(v.a)}, from the beginning.` : `${aliName(v.a)}, pasuk ${posInAli(vi)}.`);
+    if (!CAR || !CAR.on) break;
+    if (prev !== null) { const ps = segOf(prev); if (ps) await playRange(ps.a, Math.max(ps.t0, ps.t1 - 2.6), ps.t1, 1); }
+    if (!CAR || !CAR.on) break;
+    let mine = null;
+    if (live && await micOpen()) {
+      setT('Your turn', v.words.map(w => w.s).join(' '));
+      await beep(880);
+      mine = await micRecord(len * S.set.pause);
+      micClose();
+    } else { setT('Your turn', v.words.map(w => w.s).join(' ')); await beep(880); await sleep(len * S.set.pause * 1000); }
+    if (!CAR || !CAR.on) break;
+    await beep(560, 0.18);
+    let auto = null, scoreTxt = '';
+    if (mine) {
+      const t = tuneScore(vi, mine);
+      if (t && t.score !== null) { auto = t.score >= 65 ? 2 : 0; scoreTxt = `Tune ${t.score}. ${t.score >= 80 ? 'Very close.' : t.score >= 65 ? 'Close.' : 'That drifted.'}`; }
+      else scoreTxt = "I couldn't hear enough to score it.";
+      setT(scoreTxt, v.words.map(w => w.p).join(' '));
+    }
+    let q = null;
+    if (live && SRC) {
+      await say(`${scoreTxt} Good, or again?`);
+      if (!CAR || !CAR.on) break;
+      const a = await Promise.race([listenCommand(5500), new Promise(res => { CAR.answer = res; })]);
+      CAR.answer = null;
+      if (a === 'stop') break;
+      q = a;
+    } else {
+      if (scoreTxt) await say(scoreTxt);
+      if (!mine && !live) { setT('Rabbi Fessel', v.words.map(w => w.p).join(' ')); await playVerse(vi, 1); }
+      $('#cgrade').hidden = false;
+      q = await new Promise(res => { CAR.answer = res; setTimeout(() => res(null), 3500); });
+      CAR.answer = null; if ($('#cgrade')) $('#cgrade').hidden = true;
+    }
+    if (q === null) q = auto;
+    if (q === 0 && live) { setT('Rabbi Fessel', v.words.map(w => w.p).join(' ')); await say('Here is how it goes.'); await playVerse(vi, 1); }
+    if (q !== null && S.cards['R:' + vi]) grade('R:' + vi, q === 2 ? 2 : 0);
+    save();
+  }
+  carStop();
+}
+function carStop() {
+  if (!CAR) return; CAR.on = false; stopAudio();
+  micClose();
+  try { CAR.lock && CAR.lock.release(); } catch (e) { }
+  try { speechSynthesis.cancel(); } catch (e) { }
+  try { TTS && TTS.stop(); } catch (e) { }
+  CAR = null; const b = $('#cgo'); if (b) b.textContent = 'Start'; const st = $('#cst'); if (st) st.textContent = 'Stopped';
+}
+
+// ---------- routing ----------
+const VIEWS = { practice: renderPractice, car: renderCar, tikkun: renderTikkun, plan: renderPlan, trop: renderTrop, audio: renderAudio };
+function route() {
+  if (!D) return;
+  const h = (location.hash || '#practice').slice(1); const name = VIEWS[h] ? h : 'practice';
+  if (CAR && name !== 'car') carStop();
+  $$('.tabs a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + name));
+  $('#sheet').hidden = true;
+  VIEWS[name]();
+}
+window.addEventListener('hashchange', route);
+document.addEventListener('keydown', e => {
+  if (location.hash && location.hash !== '#practice') return;
+  if (e.target.tagName === 'INPUT') return;
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= 4) { const b = $$('#stage .opt:not([disabled])')[n - 1]; if (b) { b.click(); e.preventDefault(); } }
+  if (e.key === 'Enter') { const b = $('#nx') || $('#rv') || $('#lgo'); if (b) { b.click(); e.preventDefault(); } }
+});
+document.addEventListener('pointerdown', () => ac(), { once: true });
+
+function countdown() { const d = Math.max(0, Math.ceil((LEINING - Date.now()) / DAY)); $('#count').textContent = `${d} day${d === 1 ? '' : 's'} to Shabbos Chanukah`; }
+countdown();
+if (LIVE && 'serviceWorker' in navigator && location.protocol === 'https:') { try { navigator.serviceWorker.register('sw.js').catch(() => { }); } catch (e) { } }
+fetch('data.json').then(r => r.json()).then(data => { prep(data); route(); restoreAudio(); connectStore(); })
+  .catch(() => { $('#view').innerHTML = '<section class="band"><p>The leining text could not be loaded. Reload the page to try again.</p></section>'; });
+if (window.claude && claude.use) { claude.use('tts').then(t => { TTS = t; }).catch(() => { }); }
+}
+
+</script>
+</body>
+</html>
