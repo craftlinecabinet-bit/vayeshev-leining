@@ -152,7 +152,7 @@ a{color:var(--blue)}
 </head>
 <body>
 <header>
-  <div class="top"><div><h1>Vayeshev <span class="he">וַיֵּשֶׁב</span></h1><div class="sub" id="count"></div></div><div class="sub" id="sync"></div></div>
+  <div class="top"><div><h1>Vayeshev <span class="he">וַיֵּשֶׁב</span></h1><div class="sub" id="count"></div></div><div class="sub" id="sync"></div><button class="btn sm" id="install" hidden style="background:#fff;color:#1d4a87;border-color:#fff">Install as an app</button></div>
   <nav class="tabs" aria-label="Sections"><a href="#practice" class="on">Practice</a><a href="#car">Car</a><a href="#tikkun">Tikkun</a><a href="#plan">Plan</a><a href="#trop">Trop</a><a href="#audio">Audio</a></nav>
 </header>
 <main id="view"><section class="band"><p class="muted">Loading the leining…</p></section></main>
@@ -1143,10 +1143,17 @@ function renderAudio() {
       <div class="muted">${au ? (loaded ? `Loaded · ${Math.round(au.dur)} s · ${au.auto ? 'synced automatically' : 'synced by you'}` : 'Saved earlier; load the file again on this device') : 'Not loaded'}</div></div>
       <div class="acts"><label class="btn file">${au ? 'Replace' : 'Load file'}<input type="file" accept="audio/*" data-load="${a}" hidden></label>${loaded ? `<button class="btn" data-check="${a}">Check sync</button>` : ''}</div></div>`;
   }).join('');
+  const have = [1, 2, 3, 4, 5, 6, 7].filter(a => BUF[a]).length;
   $('#view').innerHTML = `<section class="band">
-    <h2>Rabbi Fessel's leining, pasuk by pasuk</h2>
-    <p>The app can't stream audio from another site, so load each aliyah once. Open the link, tap <b>Download</b> to save the MP3 to your phone, then tap <b>Load file</b> here and pick it. The app finds where each pasuk starts on its own. Use <b>Check sync</b> to listen to a few and nudge any that are off.</p>
-    <p class="muted">Once loaded, every pasuk gets a ▶ button, the practice can play his version after you read, and Car mode comes alive.</p>
+    <h2>Rabbi Fessel's leining: the answer key</h2>
+    <p>The app compares your leining against his recording. You don't have to listen to it; it just has to be loaded once on this phone.</p>
+    ${LIVE ? `<div class="card"><h3 style="margin-top:0">${have === 7 ? 'All seven aliyos are loaded' : 'Step 1: one tap'}</h3>
+      ${have === 7 ? '<p class="muted">You\'re set. Use Check sync below if a pasuk seems to start in the wrong spot.</p>' : '<p>Tap the button and the app downloads all seven aliyos from TorahDownloads and lines them up pasuk by pasuk. It takes a minute or two on Wi-Fi.</p>'}
+      <div class="row"><button class="btn primary big" id="getall">${have === 7 ? 'Download them again' : 'Get all seven recordings'}</button></div><div id="getstat"></div></div>` : ''}
+    <div class="card" id="manual" style="margin-top:12px" ${LIVE ? 'hidden' : ''}><h3 style="margin-top:0">${LIVE ? 'Backup: download them yourself' : 'Load the recordings'}</h3>
+      <ol class="how"><li>Tap each aliyah's link below. On his page, tap <b>Download</b>. Do all seven; they go to your phone's Downloads.</li><li>Come back here and tap <b>Load several at once</b>. Pick all seven files together. The app works out which is which.</li></ol>
+      <div class="row"><label class="btn primary file">Load several at once<input type="file" accept="audio/*" multiple id="loadmany" hidden></label></div><div id="manystat"></div></div>
+    <p class="muted">Once loaded, every pasuk gets a ▶ button, the practice can score your tune, and Car mode comes alive.</p>
     <div class="alist">${rows}</div>
     <div id="syncer"></div>
     <h3>Speed</h3><div class="seg">${[1, 0.85, 0.7].map(r => `<button data-rate="${r}" class="${S.set.speed === r ? 'on' : ''}">${r === 1 ? 'Normal' : r + '×'}</button>`).join('')}</div>
@@ -1158,6 +1165,35 @@ function renderAudio() {
     try { await loadAudioFile(a, f); toast('Loaded and synced'); renderAudio(); syncer(a); $('#syncer').scrollIntoView({ behavior: 'smooth' }); } catch (err) { toast('That file could not be read as audio'); }
   });
   $$('[data-check]').forEach(b => b.onclick = () => syncer(+b.dataset.check));
+  const ga = $('#getall');
+  if (ga) ga.onclick = async () => {
+    ga.disabled = true; const st = $('#getstat'); let ok = 0, blocked = false;
+    for (const a of [1, 2, 3, 4, 5, 6, 7]) {
+      st.innerHTML = `<p>Getting ${esc(aliName(a))} (${a} of 7)…</p>`;
+      try {
+        const r = await fetch(`https://torahcdn.net/tdn/${FESSEL[a]}.mp3`, { mode: 'cors' });
+        if (!r.ok) throw new Error('status ' + r.status);
+        const b = await r.blob();
+        await loadAudioFile(a, new File([b], `fessel-${a}.mp3`, { type: 'audio/mpeg' }));
+        ok++;
+      } catch (e) { blocked = true; break; }
+    }
+    if (blocked && ok === 0) { st.innerHTML = '<p class="note">His site doesn\'t let another app download the recordings directly, so use the backup way just below. It\'s seven quick downloads and one tap here.</p>'; $('#manual').hidden = false; ga.disabled = false; return; }
+    toast(ok === 7 ? 'All seven loaded and lined up' : `${ok} of 7 loaded`);
+    renderAudio(); if (ok < 7) { $('#manual').hidden = false; }
+  };
+  const lm = $('#loadmany');
+  if (lm) lm.onchange = async e => {
+    const files = [...e.target.files]; if (!files.length) return;
+    const st = $('#manystat'); const words = { rishon: 1, sheni: 2, shlishi: 3, revi: 4, chamishi: 5, shishi: 6, shevi: 7, maftir: 8 };
+    const guess = n => { n = n.toLowerCase(); for (const [a, id] of Object.entries(FESSEL)) if (n.includes(String(id))) return +a; const m = n.match(/(\d)\s*(st|nd|rd|th)\b/); if (m && +m[1] >= 1 && +m[1] <= 7) return +m[1]; for (const [w, a] of Object.entries(words)) if (n.includes(w)) return a; return null; };
+    const plan = new Map(); const rest = [];
+    files.sort((x, y) => x.name.localeCompare(y.name, undefined, { numeric: true })).forEach(f => { const a = guess(f.name); if (a && !plan.has(a)) plan.set(a, f); else rest.push(f); });
+    for (const a of [1, 2, 3, 4, 5, 6, 7]) if (!plan.has(a) && rest.length) plan.set(a, rest.shift());
+    let ok = 0;
+    for (const [a, f] of [...plan.entries()].sort((x, y) => x[0] - y[0])) { st.innerHTML = `<p>Lining up ${esc(aliName(a))}…</p>`; try { await loadAudioFile(a, f); ok++; } catch (err) { } }
+    toast(`${ok} recording${ok === 1 ? '' : 's'} loaded`); renderAudio();
+  };
   $$('[data-rate]').forEach(b => b.onclick = () => { S.set.speed = +b.dataset.rate; save(); renderAudio(); });
 }
 function syncer(a) {
@@ -1313,6 +1349,10 @@ document.addEventListener('keydown', e => {
 });
 document.addEventListener('pointerdown', () => ac(), { once: true });
 
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; const b = $('#install'); if (b) b.hidden = false; });
+window.addEventListener('appinstalled', () => { const b = $('#install'); if (b) b.hidden = true; toast('Installed. Open it from your home screen.'); });
+{ const b = $('#install'); if (b) b.onclick = async () => { if (!installEvt) return; installEvt.prompt(); try { await installEvt.userChoice; } catch (e) { } installEvt = null; b.hidden = true; }; }
 function countdown() { const d = Math.max(0, Math.ceil((LEINING - Date.now()) / DAY)); $('#count').textContent = `${d} day${d === 1 ? '' : 's'} to Shabbos Chanukah`; }
 countdown();
 if (LIVE && 'serviceWorker' in navigator && location.protocol === 'https:') { try { navigator.serviceWorker.register('sw.js').catch(() => { }); } catch (e) { } }
