@@ -100,6 +100,9 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(-
 #cgrade{grid-template-columns:repeat(2,minmax(0,1fr))}
 .g0{border-color:var(--bad);color:var(--bad)}.g1{border-color:var(--c3);color:var(--c3)}.g2{border-color:var(--ok);color:var(--ok)}
 .hl{color:var(--bad);background:var(--badbg);border-radius:4px}
+.offw{color:var(--bad);background:var(--badbg);border-radius:6px;padding:0 3px;text-decoration:underline wavy var(--bad);text-underline-offset:6px}
+.offs{padding-inline-start:18px;margin:4px 0}.offs li{margin:2px 0}
+.carstage .offw{color:#fff;background:#b3261e}
 .done h2{margin-top:0}
 .toggles{display:flex;flex-wrap:wrap;gap:8px 16px;margin:6px 0 10px;font-size:15px}.toggles input{width:18px;height:18px;vertical-align:-3px}
 .aliyah{margin-top:18px}
@@ -564,7 +567,7 @@ async function loadAudioFile(a, file) {
   BLOB[a] = file; if (ELS[a]) { try { URL.revokeObjectURL(ELS[a].src); } catch (e) { } delete ELS[a]; }
   PCM[a] = p; pcmOrder = pcmOrder.filter(k => k !== a); pcmOrder.push(a); while (pcmOrder.length > 2) delete PCM[pcmOrder.shift()];
   try { await IDB.put('a' + a, file); } catch (e) { }
-  S.audio[a] = { marks, dur: p.duration, name: file.name || 'recording', auto: true };
+  S.audio[a] = { marks, dur: p.duration, name: file.name || 'recording', auto: true, v: 2 };
   save();
 }
 async function restoreAudio() {
@@ -573,13 +576,47 @@ async function restoreAudio() {
     try { const f = await IDB.get('a' + a); if (f) BLOB[a] = f; } catch (e) { }
   }
   if (['#audio', '#car', '#tikkun', '#practice', ''].includes(location.hash)) route();
+  // Recordings lined up by the earlier version get lined up again (the new one skips a spoken announcement).
+  const old = Object.keys(S.audio).filter(a => BLOB[a] && S.audio[a].auto && S.audio[a].v !== 2);
+  if (old.length) {
+    toast('Re-lining up your recordings…');
+    for (const a of old) { try { const p = await pcm(a); S.audio[a].marks = autoSync(p, ALI[a]); S.audio[a].v = 2; save(); } catch (e) { } }
+    toast('Recordings lined up again');
+    if (location.hash === '#audio') route();
+  }
 }
 function frameDb(buf, hop = 0.02) {
   const sr = buf.sampleRate, ch = buf.getChannelData(0), n = Math.floor(buf.duration / hop), out = new Float32Array(n), step = Math.round(sr * hop);
   for (let i = 0; i < n; i++) { let s = 0; const o = i * step; for (let k = 0; k < step; k += 2) { const x = ch[o + k] || 0; s += x * x; } out[i] = 10 * Math.log10(s / (step / 2) + 1e-10); }
   return out;
 }
-function autoSync(buf, vis) {
+function alignDP(T0, T1, cand, weights, sf, sa) {
+  // Chooses where the boundaries fall: each piece should be about as long as its share of the syllables,
+  // and boundaries prefer real pauses (cand[j].w is how strongly that spot looks like a break).
+  const N = weights.length; if (N === 1) return { b: [T0, T1], cost: 0, idx: [] };
+  const C = cand.length; if (C < N - 1) return null;
+  const tot = weights.reduce((a, b) => a + b, 0), rate = (T1 - T0) / tot;
+  const D = weights.map(w => w * rate), SG = D.map(d => sf * d + sa);
+  const cost = (k, from, to) => { const x = (to - from - D[k]) / SG[k]; return x * x; };
+  const INF = 1e18; let dp = new Float64Array(C).fill(INF); const back = [];
+  for (let j = 0; j < C; j++) dp[j] = cost(0, T0, cand[j].c) - cand[j].w;
+  for (let k = 1; k < N - 1; k++) {
+    const nd = new Float64Array(C).fill(INF), bk = new Int32Array(C).fill(-1), lo = D[k] * 0.2, hi = D[k] * 3.5 + 2;
+    for (let j = k; j < C; j++) {
+      let best = INF, bi = -1;
+      for (let i = j - 1; i >= k - 1; i--) { const gap = cand[j].c - cand[i].c; if (gap < lo) continue; if (gap > hi) break; if (dp[i] >= INF) continue; const v = dp[i] + cost(k, cand[i].c, cand[j].c); if (v < best) { best = v; bi = i; } }
+      if (bi >= 0) { nd[j] = best - cand[j].w; bk[j] = bi; }
+    }
+    back.push(bk); dp = nd;
+  }
+  let best = INF, bj = -1;
+  for (let j = 0; j < C; j++) { if (dp[j] >= INF) continue; const v = dp[j] + cost(N - 1, cand[j].c, T1); if (v < best) { best = v; bj = j; } }
+  if (bj < 0) return null;
+  const idx = [bj]; for (let k = back.length - 1; k >= 0; k--) idx.unshift(back[k][idx[0]]);
+  return { b: [T0, ...idx.map(j => cand[j].c), T1], cost: best, idx };
+}
+let SKIPPEN = 0.2;
+function autoSync(buf, vis, forcedStart) {
   const hop = 0.02, db = frameDb(buf, hop), n = db.length;
   const sorted = [...db].sort((a, b) => a - b), floor = sorted[Math.floor(n * 0.1)], top = sorted[Math.floor(n * 0.95)];
   const thr = floor + 0.3 * (top - floor);
@@ -587,26 +624,46 @@ function autoSync(buf, vis) {
   let e0 = n - 1; while (e0 > 0 && db[e0] < thr) e0--;
   const T0 = s0 * hop, T1 = (e0 + 1) * hop;
   const pauses = [];
-  for (let i = s0; i <= e0;) { if (db[i] < thr) { let j = i; while (j <= e0 && db[j] < thr) j++; const L = (j - i) * hop; if (L >= 0.08) pauses.push({ c: (i + j) / 2 * hop, end: j * hop, L }); i = j; } else i++; }
-  const N = vis.length, syl = vis.map(vi => V[vi].syl), tot = syl.reduce((a, b) => a + b, 0), rate = (T1 - T0) / tot;
-  const prop = () => { const m = [T0]; let acc = 0; for (let k = 0; k < N - 1; k++) { acc += syl[k]; m.push(T0 + acc * rate); } return m; };
-  if (N === 1) return [T0];
-  if (pauses.length < N - 1) return prop();
-  const C = pauses.length, INF = 1e18;
-  const cost = (k, from, to) => { const Dk = syl[k] * rate, sg = 0.3 * Dk + 0.6, x = (to - from - Dk) / sg; return x * x; };
-  const bonus = j => -2.2 * Math.log(pauses[j].L / 0.1);
-  let dp = new Float64Array(C).fill(INF); const back = [];
-  for (let j = 0; j < C; j++) dp[j] = cost(0, T0, pauses[j].c) + bonus(j);
-  for (let k = 1; k < N - 1; k++) {
-    const nd = new Float64Array(C).fill(INF), bk = new Int32Array(C).fill(-1);
-    for (let j = k; j < C; j++) { let best = INF, bi = -1; for (let i = k - 1; i < j; i++) { if (dp[i] >= INF) continue; const v = dp[i] + cost(k, pauses[i].c, pauses[j].c); if (v < best) { best = v; bi = i; } } if (bi >= 0) { nd[j] = best + bonus(j); bk[j] = bi; } }
-    back.push(bk); dp = nd;
+  for (let i = s0; i <= e0;) { if (db[i] < thr) { let j = i; while (j <= e0 && db[j] < thr) j++; const L = (j - i) * hop; if (L >= 0.08) pauses.push({ c: (i + j) / 2 * hop, start: i * hop, end: j * hop, L }); i = j; } else i++; }
+  const weights = vis.map(vi => V[vi].syl);
+  // Where might the leining really begin and end? Either at the first and last sound, or after a spoken
+  // announcement ("This week's leining is...") and before any closing words. Each choice is scored; skipping costs a little.
+  const starts = forcedStart != null ? [{ t: forcedStart, pen: 0 }] : [{ t: T0, pen: 0 }, ...pauses.filter(p => p.c < T0 + 25 && p.L >= 0.25).map(p => ({ t: p.end, pen: SKIPPEN }))];
+  const ends = [{ t: T1, pen: 0 }, ...pauses.filter(p => p.c > T1 - 20 && p.L >= 0.25).map(p => ({ t: p.start, pen: SKIPPEN }))];
+  let best = null;
+  for (const st of starts) for (const en of ends) {
+    if (en.t - st.t < 0.4 * vis.length) continue;
+    const cand = pauses.filter(p => p.c > st.t + 0.3 && p.c < en.t - 0.3).map(p => ({ c: p.c, end: p.end, w: 2.2 * Math.log(p.L / 0.1) }));
+    const r = alignDP(st.t, en.t, cand, weights, 0.3, 0.6); if (!r) continue;
+    const total = r.cost + st.pen + en.pen;
+    if (!best || total < best.total) best = { total, st, r, cand };
   }
-  let best = INF, bj = -1;
-  for (let j = 0; j < C; j++) { if (dp[j] >= INF) continue; const v = dp[j] + cost(N - 1, pauses[j].c, T1); if (v < best) { best = v; bj = j; } }
-  if (bj < 0) return prop();
-  const idx = [bj]; for (let k = back.length - 1; k >= 0; k--) idx.unshift(back[k][idx[0]]);
-  return [T0, ...idx.map(j => Math.max(0, pauses[j].end - 0.06))];
+  if (!best) { const a = forcedStart != null ? forcedStart : T0, tot = weights.reduce((x, y) => x + y, 0), rate = (T1 - a) / tot; const m = [a]; let acc = 0; for (let k = 0; k < vis.length - 1; k++) { acc += weights[k]; m.push(a + acc * rate); } return m; }
+  return [best.st.t, ...best.r.idx.map(j => Math.max(0, best.cand[j].end - 0.06))];
+}
+// How long each word tends to be held, beyond its syllables: stops are held, connectors move on.
+const HOLD = { sof_pasuk: 3, esnachta: 3, segol: 4, shalsheles: 6, zakef_katon: 2.5, zakef_godol: 4, tipcha: 1.5, revii: 2.5, zarka: 3, pashta: 2, yesiv: 2, tevir: 2, geresh: 2.5, gershayim: 3, karnei_para: 5, telisha_gedola: 3, pazer: 5, munach_legarmeh: 2, telisha_ketana: 1.5, mercha_kefula: 1.5, yerach_ben_yomo: 1 };
+async function refWordTimes(vi) {
+  // Where each word sits inside Rabbi Fessel's pasuk: dips in loudness between words, guided by syllables and trop.
+  const s = segOf(vi); if (!s) return null; const p = await pcm(s.a); if (!p) return null;
+  const sr = p.sampleRate, x = p.x.subarray(Math.floor(s.t0 * sr), Math.floor(s.t1 * sr));
+  const v = V[vi], beats = v.words.map(w => (w.dv ? 3 : String(w.tr || '').split(/[·-]/).length) + (HOLD[w.t] !== undefined ? HOLD[w.t] : 0.5));
+  const hop = Math.round(sr * 0.01), n = Math.floor(x.length / hop), raw = new Float32Array(n);
+  for (let i = 0; i < n; i++) { let e = 0; for (let k = 0; k < hop; k++) { const y = x[i * hop + k] || 0; e += y * y; } raw[i] = 10 * Math.log10(e / hop + 1e-10); }
+  const db = raw.map((_, i) => (raw[Math.max(0, i - 1)] + raw[i] + raw[Math.min(n - 1, i + 1)]) / 3);
+  const so = [...db].sort((a, b) => a - b), floor = so[Math.floor(n * 0.1)] || -100, top = so[Math.floor(n * 0.95)] || 0, thr = floor + 0.3 * (top - floor);
+  let s0 = 0; while (s0 < n && db[s0] < thr) s0++; let e0 = n - 1; while (e0 > 0 && db[e0] < thr) e0--;
+  const T0 = s0 * 0.01, T1 = (e0 + 1) * 0.01;
+  const cand = [];
+  for (let i = s0 + 4; i < e0 - 4; i++) {
+    if (db[i] > db[i - 1] || db[i] > db[i + 1]) continue;
+    let mx = -1e9; for (let k = Math.max(0, i - 6); k <= Math.min(n - 1, i + 6); k++) mx = Math.max(mx, db[k]);
+    const depth = mx - db[i]; if (depth >= 3) cand.push({ c: i * 0.01, w: Math.min(depth, 24) / 6 });
+  }
+  const r = alignDP(T0, Math.max(T1, T0 + 0.5), cand, beats, 0.45, 0.08);
+  let b = r ? r.b : null;
+  if (!b) { const tot = beats.reduce((a, c) => a + c, 0), rate = (T1 - T0) / tot; b = [T0]; let acc = 0; beats.forEach(w => { acc += w; b.push(T0 + acc * rate); }); }
+  return v.words.map((_, i) => [b[i], b[i + 1]]);
 }
 function segOf(vi) {
   const a = V[vi].a, au = S.audio[a]; if (!au || !BLOB[a]) return null;
@@ -673,25 +730,31 @@ function pitchTrack(x0, sr) {
     let L = bl; { const a = nsdf[bi - 1], b = nsdf[bi], c = nsdf[bi + 1]; const d = a - 2 * b + c; if (d) L = bl + 0.5 * (a - c) / d; }
     out.push(fs / L);
   }
-  return out;
+  return { f0: out, hop: hop / fs };
 }
-function semis(track) {
-  const v = track.filter(f => f > 0); if (v.length < 8) return [];
-  const med = [...v].sort((a, b) => a - b)[Math.floor(v.length / 2)];
-  let s = v.map(f => 12 * Math.log2(f / med));
-  // fold stray octave jumps back toward the line of the melody
-  s = s.map((y, i) => { const w = s.slice(Math.max(0, i - 7), i + 8).sort((a, b) => a - b), m = w[Math.floor(w.length / 2)]; while (y - m > 8) y -= 12; while (m - y > 8) y += 12; return y; });
-  const sm = s.map((_, i) => { const w = s.slice(Math.max(0, i - 2), i + 3).sort((a, b) => a - b); return w[Math.floor(w.length / 2)]; });
-  const step = Math.max(1, Math.floor(sm.length / 260)); return sm.filter((_, i) => i % step === 0);
+function contour(x, sr) {
+  const { f0, hop } = pitchTrack(x, sr);
+  const pts = []; f0.forEach((f, i) => { if (f > 0) pts.push([i * hop, f]); });
+  if (pts.length < 8) return { v: [], t: [] };
+  const fs = pts.map(q => q[1]).sort((a, b) => a - b), med = fs[Math.floor(fs.length / 2)];
+  let v = pts.map(q => 12 * Math.log2(q[1] / med));
+  v = v.map((y, i) => { const w = v.slice(Math.max(0, i - 7), i + 8).sort((a, b) => a - b), m = w[Math.floor(w.length / 2)]; while (y - m > 8) y -= 12; while (m - y > 8) y += 12; return y; });
+  v = v.map((_, i) => { const w = v.slice(Math.max(0, i - 2), i + 3).sort((a, b) => a - b); return w[Math.floor(w.length / 2)]; });
+  const t = pts.map(q => q[0]), step = Math.max(1, Math.ceil(v.length / 400));
+  return { v: v.filter((_, i) => i % step === 0), t: t.filter((_, i) => i % step === 0) };
 }
+function semis(track) { return contour(track.x, track.sr).v; }
+function localCost(a, b, i, j) { const da = i > 0 ? a[i] - a[i - 1] : 0, db = j > 0 ? b[j] - b[j - 1] : 0; return Math.min(Math.abs(a[i] - b[j]) + 1.5 * Math.abs(da - db), 6); }
+const DTWP = { band: 0.12, step: 0.6 };
 function dtw(a, b) {
+  // Lines up your melody with his. Stretching or squeezing time costs a little (step), so a wrong note can't hide by sliding onto a neighbouring word.
   const n = a.length, m = b.length; if (!n || !m) return { score: 0, path: [] };
-  const w = Math.max(Math.abs(n - m) + 4, Math.floor(Math.max(n, m) * 0.12));
+  const w = Math.max(Math.abs(n - m) + 4, Math.floor(Math.max(n, m) * DTWP.band)), p = DTWP.step;
   const D = new Float32Array((n + 1) * (m + 1)).fill(1e9); D[0] = 0; const I = (i, j) => i * (m + 1) + j;
-  for (let i = 1; i <= n; i++) { const jc = Math.round(i * m / n); for (let j = Math.max(1, jc - w); j <= Math.min(m, jc + w); j++) { const da = i > 1 ? a[i - 1] - a[i - 2] : 0, db2 = j > 1 ? b[j - 1] - b[j - 2] : 0; const c = Math.min(Math.abs(a[i - 1] - b[j - 1]) + 1.5 * Math.abs(da - db2), 6); D[I(i, j)] = c + Math.min(D[I(i - 1, j)], D[I(i, j - 1)], D[I(i - 1, j - 1)]); } }
-  let i = n, j = m, steps = 0; const path = [];
-  while (i > 0 && j > 0) { path.push([i - 1, j - 1]); steps++; const d = D[I(i - 1, j - 1)], u = D[I(i - 1, j)], l = D[I(i, j - 1)]; if (d <= u && d <= l) { i--; j--; } else if (u < l) i--; else j--; }
-  const avg = D[I(n, m)] / Math.max(1, steps);
+  for (let i = 1; i <= n; i++) { const jc = Math.round(i * m / n); for (let j = Math.max(1, jc - w); j <= Math.min(m, jc + w); j++) { const c = localCost(a, b, i - 1, j - 1); D[I(i, j)] = c + Math.min(D[I(i - 1, j - 1)], D[I(i - 1, j)] + p, D[I(i, j - 1)] + p); } }
+  let i = n, j = m, steps = 0, sum = 0; const path = [];
+  while (i > 0 && j > 0) { path.push([i - 1, j - 1]); sum += localCost(a, b, i - 1, j - 1); steps++; const d = D[I(i - 1, j - 1)], u = D[I(i - 1, j)] + p, l = D[I(i, j - 1)] + p; if (d <= u && d <= l) { i--; j--; } else if (u < l) i--; else j--; }
+  const avg = sum / Math.max(1, steps);
   return { score: Math.max(0, Math.min(100, Math.round(100 - 30 * (avg - 0.3)))), avg, path: path.reverse() };
 }
 async function refSamples(vi) { const s = segOf(vi); if (!s) return null; const p = await pcm(s.a); if (!p) return null; const sr = p.sampleRate; return { x: p.x.subarray(Math.floor(s.t0 * sr), Math.floor(s.t1 * sr)), sr }; }
@@ -732,7 +795,21 @@ function micRecord(seconds, onLevel) {
     function finish() { if (done) return; done = true; clearTimeout(t); try { proc.disconnect(); src.disconnect(); } catch (e) { } const len = chunks.reduce((a, c) => a + c.length, 0), x = new Float32Array(len); let o = 0; chunks.forEach(c => { x.set(c, o); o += c.length; }); res({ x, sr: ctx.sampleRate }); }
   });
 }
-async function tuneScore(vi, mine) { const r = await refSamples(vi); if (!r || !mine) return null; const A = semis(pitchTrack(r.x, r.sr)), B = semis(pitchTrack(mine.x, mine.sr)); if (A.length < 8 || B.length < 8) return { score: null, A, B }; const d = dtw(A, B); const Bal = A.map(() => null); d.path.forEach(([i, j]) => { Bal[i] = B[j]; }); return { score: d.score, A, B: Bal.map((y, i) => y === null ? A[i] : y) }; }
+async function tuneScore(vi, mine) {
+  const r = await refSamples(vi); if (!r || !mine) return null;
+  const A = contour(r.x, r.sr), B = contour(mine.x, mine.sr);
+  if (A.v.length < 8 || B.v.length < 8) return { score: null, A: A.v, B: [], off: [] };
+  const d = dtw(A.v, B.v);
+  const per = A.v.map(() => []); d.path.forEach(([i, j]) => per[i].push(localCost(A.v, B.v, i, j)));
+  const pc = per.map(l => l.length ? l.reduce((x, y) => x + y, 0) / l.length : null);
+  const Bal = A.v.map(() => null); d.path.forEach(([i, j]) => { Bal[i] = B.v[j]; });
+  const wt = (await refWordTimes(vi)) || [];
+  const words = wt.map(([s0, s1], wi) => { const c = []; A.t.forEach((t, i) => { if (t >= s0 && t < s1 && pc[i] !== null) c.push(pc[i]); }); return { wi, n: c.length, cost: c.length ? c.reduce((x, y) => x + y, 0) / c.length : null }; });
+  const known = words.filter(w => w.n >= 4).map(w => w.cost).sort((a, b) => a - b), med = known.length ? known[Math.floor(known.length / 2)] : 0;
+  words.forEach(w => { w.off = w.n >= 4 && w.cost > 1.4 && (w.cost > 1.5 * med || w.cost > 2.2); });
+  const off = words.filter(w => w.off).sort((a, b) => b.cost - a.cost).slice(0, 3).map(w => w.wi).sort((a, b) => a - b);
+  return { score: d.score, A: A.v, B: Bal.map((y, i) => y === null ? A.v[i] : y), off, words };
+}
 
 // ---------- rendering helpers ----------
 function heWord(w, mode) { return mode === 'scroll' ? w.s : mode === 'notrop' ? w.n : mode === 'novowel' ? w.m : w.p; }
@@ -987,7 +1064,8 @@ function cardRead(id) {
       ${hasA ? `<div id="tuneout"></div><div class="row"><button class="btn" id="hear">▶ Hear Rabbi Fessel</button>${preTune ? '' : '<button class="btn" id="tune">Check my tune</button>'}</div>` : ''}
       <div class="grades"><button class="btn g0" data-q="0">Needed help</button><button class="btn g1" data-q="1">Small slips</button><button class="btn g2" data-q="2" ${peek ? 'disabled title="You peeked, so the best grade is Small slips"' : ''}>Clean</button></div>`;
     $$('.tw').forEach(b => b.onclick = () => { const wi = +b.dataset.wi; if (miss.has(wi)) miss.delete(wi); else miss.add(wi); b.classList.toggle('miss'); const g2 = $('.g2'); if (g2) g2.disabled = !!peek || miss.size > 0; });
-    if (hasA) { $('#hear').onclick = () => playVerse(vi); const tb = $('#tune'); if (tb) tb.onclick = () => tuneCheck(vi, $('#tuneout')); if (preTune) showTune(vi, preTune, $('#tuneout')); }
+    const markOff = t => { if (!t || !t.off) return; t.off.forEach(wi => { const b = $(`.tw[data-wi="${wi}"]`); if (b && !miss.has(wi)) b.click(); }); if (t.off.length) toast('The words where your tune went off are marked in red'); };
+    if (hasA) { $('#hear').onclick = () => playVerse(vi); const tb = $('#tune'); if (tb) tb.onclick = async () => markOff(await tuneCheck(vi, $('#tuneout'))); if (preTune) showTune(vi, preTune, $('#tuneout')).then(markOff); }
     $$('.grades button').forEach(b => b.onclick = () => {
       const q = +b.dataset.q; miss.forEach(wi => wordStat(vi, wi, false));
       v.words.forEach((w, wi) => { if (!miss.has(wi)) { const k = vi + ':' + wi; if (S.ws[k]) S.ws[k][0]++; } });
@@ -1014,8 +1092,12 @@ async function showTune(vi, mine, out) {
   out.innerHTML = '<p class="muted">Comparing…</p>';
   const t = await tuneScore(vi, mine);
   if (!t || t.score === null) { out.innerHTML = '<p class="muted">Not enough singing was picked up to compare. Try again a little louder, closer to the phone.</p>'; return t; }
-  const good = t.score >= 65;
-  out.innerHTML = `<div class="fb ${good ? 'ok' : 'bad'}"><div class="verdict">Tune match ${t.score}</div><div>${t.score >= 80 ? 'Your melody follows his closely.' : good ? 'Close. A few spots rise or fall differently from his.' : 'The shape of your melody drifts from his. Listen again and copy the rises and falls.'}</div>${contourSvg(t.A, t.B)}<p class="muted"><span class="key ref"></span> Rabbi Fessel &nbsp; <span class="key mine"></span> you. The match compares the shape of the melody, so your own key is fine.</p></div>`;
+  const v = V[vi], good = t.score >= 65 && !t.off.length;
+  const offList = t.off.map(wi => `<li><span class="he inl" dir="rtl" lang="he">${esc(v.words[wi].p)}</span> &nbsp;word ${wi + 1}, the <b>${esc(tropName(v.words[wi].t))}</b></li>`).join('');
+  const line = v.words.map((w, wi) => `<span class="${t.off.includes(wi) ? 'offw' : ''}">${esc(w.p)}</span>`).join(' ');
+  out.innerHTML = `<div class="fb ${good ? 'ok' : 'bad'}"><div class="verdict">Tune ${t.score}${t.off.length ? ` · ${t.off.length} word${t.off.length === 1 ? '' : 's'} to fix` : ''}</div>
+    ${t.off.length ? `<p>The tune went off here:</p><ul class="offs">${offList}</ul><div class="he" dir="rtl" lang="he">${line}</div>` : `<p>${t.score >= 80 ? 'Every word follows his tune closely.' : 'Close. No single word stands out, but the whole pasuk wanders a little. Sing it again more steadily.'}</p>`}
+    ${contourSvg(t.A, t.B)}<p class="muted"><span class="key ref"></span> Rabbi Fessel &nbsp; <span class="key mine"></span> you. Your own key is fine; the app compares the rises and falls. Word-by-word marking is a strong hint, not a verdict: if it flags a word you know you sang right, tap it to unmark it.</p></div>`;
   return t;
 }
 
@@ -1227,7 +1309,14 @@ function syncer(a) {
   const el = $('#syncer');
   el.innerHTML = `<div class="card"><h3>${esc(aliName(a))}: where each pasuk starts</h3><p class="muted">Tap ▶ to hear a pasuk from its start. If it begins early or late, nudge it.</p>
     <div class="slist">${vis.map((vi, i) => `<div class="srow"><button class="btn sm" data-sp="${i}">▶ ${esc(V[vi].ref)}</button><span class="he" dir="rtl" lang="he">${esc(V[vi].words.slice(0, 3).map(w => w.n).join(' '))}</span><span class="tm">${au.marks[i].toFixed(1)} s</span><span><button class="btn sm" data-nd="${i}" data-by="-0.3">−</button><button class="btn sm" data-nd="${i}" data-by="0.3">+</button></span></div>`).join('')}</div>
-    <div class="row"><button class="btn" id="redo">Re-run the automatic sync</button><button class="btn" id="tap">Mark them myself by tapping</button></div><div id="tapper"></div></div>`;
+    <div class="row"><button class="btn primary" id="fixstart">Fix the start</button><button class="btn" id="redo">Re-run the automatic sync</button><button class="btn" id="tap">Mark every pasuk myself</button></div><div id="tapper"></div></div>`;
+  $('#fixstart').onclick = () => {
+    stopAudio(); ac(); const e = el(a); e.playbackRate = 1; e.muted = false; try { e.currentTime = 0; } catch (x) { } e.play().catch(() => { });
+    curStop = () => { try { e.pause(); } catch (x) { } curStop = null; };
+    $('#tapper').innerHTML = `<div class="tapbox"><p>Listen from the beginning. The moment he starts the first pasuk, <span class="he inl" dir="rtl" lang="he">${esc(V[vis[0]].words.slice(0, 2).map(w => w.n).join(' '))}</span>, tap the button. The app lines up the rest from there.</p><button class="btn primary big" id="startnow">He's starting the first pasuk now</button> <button class="btn" id="startcancel">Cancel</button></div>`;
+    $('#startnow').onclick = async () => { const t = Math.max(0, e.currentTime - 0.35); stopAudio(); const p = await pcm(a); au.marks = autoSync(p, vis, t); au.auto = false; au.v = 2; save(); syncer(a); toast('Lined up from the first pasuk'); };
+    $('#startcancel').onclick = () => { stopAudio(); $('#tapper').innerHTML = ''; };
+  };
   $$('[data-sp]', el).forEach(b => b.onclick = () => { const i = +b.dataset.sp; playVerse(vis[i], 1); });
   $$('[data-nd]', el).forEach(b => b.onclick = () => { const i = +b.dataset.nd; au.marks[i] = Math.max(0, au.marks[i] + +b.dataset.by); au.auto = false; save(); syncer(a); playVerse(vis[i], 1); });
   $('#redo').onclick = async () => { const p = await pcm(a); if (!p) return; au.marks = autoSync(p, vis); au.auto = true; save(); syncer(a); };
@@ -1322,9 +1411,15 @@ async function carStart() {
     let auto = null, scoreTxt = '';
     if (mine) {
       const t = await tuneScore(vi, mine);
-      if (t && t.score !== null) { auto = t.score >= 65 ? 2 : 0; scoreTxt = `Tune ${t.score}. ${t.score >= 80 ? 'Very close.' : t.score >= 65 ? 'Close.' : 'That drifted.'}`; }
-      else scoreTxt = "I couldn't hear enough to score it.";
-      setT(scoreTxt, v.words.map(w => w.p).join(' '));
+      const ord = n => ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth', 'fourteenth', 'fifteenth', 'sixteenth', 'seventeenth', 'eighteenth', 'nineteenth', 'twentieth'][n] || `number ${n + 1}`;
+      if (t && t.score !== null) {
+        auto = t.score >= 65 && !t.off.length ? 2 : 0;
+        t.off.forEach(wi => wordStat(vi, wi, false));
+        scoreTxt = t.off.length ? `Off on the ${t.off.map(wi => `${ord(wi)} word, the ${tropName(v.words[wi].t)}`).join('; and the ')}.` : `Tune ${t.score}. ${t.score >= 80 ? 'Very close.' : 'Close.'}`;
+        if (tx) tx.innerHTML = v.words.map((w, wi) => `<span class="${t.off.includes(wi) ? 'offw' : ''}">${esc(w.p)}</span>`).join(' ');
+        if (st) st.textContent = t.off.length ? `${t.off.length} word${t.off.length === 1 ? '' : 's'} to fix` : `Tune ${t.score}`;
+      }
+      else { scoreTxt = "I couldn't hear enough to score it."; setT(scoreTxt, v.words.map(w => w.p).join(' ')); }
     }
     let q = null;
     if (live && SRC) {
