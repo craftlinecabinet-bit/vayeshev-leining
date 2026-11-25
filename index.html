@@ -778,12 +778,51 @@ function listenCommand(ms) {
     try { r.start(); } catch (e) { fin(null); }
   });
 }
+// Which microphones the phone has. With a car or headset on Bluetooth, the default mic is the car's, and opening it
+// switches the car into "phone call" mode, which cuts off the app's sound until the car switches back.
+// Picking the phone's own mic keeps the car in music mode.
+const MICDEV = { phoneId: null, phoneLabel: '', bt: false, labels: [], known: false };
+async function micDevices() {
+  try {
+    const ins = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput');
+    MICDEV.labels = ins.map(d => d.label).filter(Boolean);
+    MICDEV.known = MICDEV.labels.length > 0;
+    MICDEV.bt = ins.some(d => /bluetooth|hands-?free|\bbt\b|car/i.test(d.label));
+    const own = d => d.label && d.deviceId !== 'default' && d.deviceId !== 'communications' && !/bluetooth|hands-?free|\bbt\b|headset|car|usb/i.test(d.label);
+    const ph = ins.find(d => /speakerphone/i.test(d.label)) || ins.find(d => own(d) && /built-?in|bottom|phone|mic/i.test(d.label)) || ins.find(own);
+    MICDEV.phoneId = ph ? ph.deviceId : null; MICDEV.phoneLabel = ph ? ph.label : '';
+  } catch (e) { }
+}
+const usePhoneMic = () => S.set.mic !== 'car';
 async function micOpen() {
   if (MIC.stream) return true;
   if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) { MIC.ok = false; return false; }
-  try { MIC.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); MIC.ok = true; return true; }
-  catch (e) { MIC.ok = false; return false; }
+  const phone = usePhoneMic();
+  if (phone && !MICDEV.known) await micDevices();
+  // Nothing plays while the app records, so there is no echo to cancel; leaving echo-cancelling off also keeps
+  // the phone out of its "voice call" sound processing, which can chop up a sung note.
+  const audio = phone ? { echoCancellation: false, noiseSuppression: true, autoGainControl: true } : { echoCancellation: true, noiseSuppression: true };
+  if (phone && MICDEV.phoneId) audio.deviceId = { exact: MICDEV.phoneId };
+  try { MIC.stream = await navigator.mediaDevices.getUserMedia({ audio }); }
+  catch (e) { if (audio.deviceId) { delete audio.deviceId; try { MIC.stream = await navigator.mediaDevices.getUserMedia({ audio }); } catch (e2) { } } }
+  if (!MIC.stream) { MIC.ok = false; return false; }
+  MIC.ok = true; const tr = MIC.stream.getAudioTracks()[0]; MIC.label = tr ? tr.label : '';
+  if (!MICDEV.known) await micDevices();   // names only show up once the mic is allowed
+  return true;
 }
+// Waits until the microphone is really delivering sound (a Bluetooth mic can take a second or two to come on).
+function micLive(maxMs = 3000) {
+  return new Promise(res => {
+    const ctx = ac(); if (!ctx || !MIC.stream) return res(false);
+    const src = ctx.createMediaStreamSource(MIC.stream), proc = ctx.createScriptProcessor(2048, 1, 1), t0 = Date.now();
+    let done = false; const fin = ok => { if (done) return; done = true; clearTimeout(t); try { proc.disconnect(); src.disconnect(); } catch (e) { } res(ok); };
+    proc.onaudioprocess = e => { const d = e.inputBuffer.getChannelData(0); for (let i = 0; i < d.length; i += 4) if (d[i] !== 0) { if (Date.now() - t0 > 250) fin(true); return; } };
+    src.connect(proc); proc.connect(ctx.destination);
+    const t = setTimeout(() => fin(false), maxMs);
+  });
+}
+// After the mic turns off, give the phone and the car time to switch back to normal sound before playing anything.
+const settle = () => sleep(usePhoneMic() ? 1500 : 2600);
 function micRecord(seconds, onLevel) {
   return new Promise(res => {
     const ctx = ac(); if (!ctx || !MIC.stream) return res(null);
@@ -1350,7 +1389,21 @@ function renderCar() {
     <div class="grades" id="cgrade" hidden><button class="btn g0" data-cg="0">Again</button><button class="btn g2" data-cg="2">Had it</button></div>
     <p class="muted">${live ? 'This browser can use the microphone. While you lein, the app records you and scores your tune against Rabbi Fessel\'s. Then it asks "Good or again?" and listens for your answer. Say "stop" to end. If you don\'t answer, the tune score decides.' : 'Inside the Claude app the page can\'t hear you, so Car mode only plays and pauses. When you get home, the pesukim you struggled with will still come up in Practice. If your car\'s steering-wheel skip buttons reach the app, Next means "had it" and Back means "again".'}</p>
     <p class="muted">${learned.length} learned ${learned.length === 1 ? 'pasuk has' : 'pesukim have'} audio.</p>
+    ${live ? `<h3>With the car's Bluetooth</h3>
+    <p>Which microphone listens to you:</p>
+    <div class="seg" id="mic"><button data-mic="phone" class="${usePhoneMic() ? 'on' : ''}">The phone's own</button><button data-mic="car" class="${usePhoneMic() ? '' : 'on'}">The car's</button></div>
+    <p class="muted">Use the phone's own. When the app uses the car's microphone, the car treats it like a phone call and cuts off the app's sound each time it switches. With the phone's own microphone, the car stays on music and you keep hearing everything. Keep the phone in its mount, not in a pocket or bag, so it can hear you.</p>
+    <div class="toggles"><label><input type="checkbox" id="vans" ${S.set.voiceAns !== false ? 'checked' : ''}> Answer out loud ("good" or "again")</label></div>
+    <p class="muted">If you turn this off, the tune score decides on its own, and the steering-wheel skip buttons still work (next means "had it", back means "again").</p>` : ''}
+    <h3>Sound check</h3>
+    <p>Run this once in the car, connected to Bluetooth. It goes through each kind of sound one at a time and tells you the step number out loud.</p>
+    <div class="row"><button class="btn" id="scgo" ${CAR ? 'disabled' : ''}>Run sound check</button></div>
+    <ol class="how" id="sc" hidden></ol>
+    <div id="scsum"></div>
   </section>`;
+  $$('[data-mic]').forEach(b => b.onclick = () => { S.set.mic = b.dataset.mic; save(); renderCar(); });
+  const va = $('#vans'); if (va) va.onchange = () => { S.set.voiceAns = va.checked; save(); };
+  $('#scgo').onclick = () => { if (CHECK) CHECK.on = false; else soundCheck(); };
   $$('[data-cm]').forEach(b => b.onclick = () => { S.set.carMode = b.dataset.cm; save(); renderCar(); });
   $('#pause').oninput = e => { S.set.pause = +e.target.value; $('#pv').textContent = S.set.pause.toFixed(2) + '×'; save(); };
   $('#cgo').onclick = () => { if (CAR) carStop(); else carStart(); };
@@ -1369,12 +1422,13 @@ function carPick() {
   });
 }
 async function carStart() {
-  ac();
+  if (CHECK) return;
+  ac(); const sg = $('#scgo'); if (sg) sg.disabled = true;
   CAR = { on: true, recent: [], answer: null };
   $('#cgo').textContent = 'Stop';
   try { if (navigator.wakeLock) CAR.lock = await navigator.wakeLock.request('screen'); } catch (e) { }
   const live = LIVE && await micOpen();
-  if (live) micClose();
+  if (live) { micClose(); await settle(); }
   try { if ('mediaSession' in navigator) { navigator.mediaSession.setActionHandler('nexttrack', () => CAR && CAR.answer && CAR.answer(2)); navigator.mediaSession.setActionHandler('previoustrack', () => CAR && CAR.answer && CAR.answer(0)); navigator.mediaSession.setActionHandler('pause', () => carStop()); } } catch (e) { }
   await say(S.set.carMode === 'test' ? (live ? 'Car mode. After the beep, lein the next pasuk. I will tell you how your tune matched.' : 'Car mode. After the beep, lein the next pasuk.') : 'Car mode. Listen, then repeat.');
   while (CAR && CAR.on) {
@@ -1402,12 +1456,15 @@ async function carStart() {
     let mine = null;
     if (live && await micOpen()) {
       setT('Your turn', v.words.map(w => w.s).join(' '));
+      await micLive();
       await beep(880);
       mine = await micRecord(len * S.set.pause);
+      await beep(560, 0.18);   // the "done" beep plays before the mic closes, on the same sound path as the first one
       micClose();
-    } else { setT('Your turn', v.words.map(w => w.s).join(' ')); await beep(880); await sleep(len * S.set.pause * 1000); }
+      if (!CAR || !CAR.on) break;
+      await settle();
+    } else { setT('Your turn', v.words.map(w => w.s).join(' ')); await beep(880); await sleep(len * S.set.pause * 1000); if (!CAR || !CAR.on) break; await beep(560, 0.18); }
     if (!CAR || !CAR.on) break;
-    await beep(560, 0.18);
     let auto = null, scoreTxt = '';
     if (mine) {
       const t = await tuneScore(vi, mine);
@@ -1422,11 +1479,12 @@ async function carStart() {
       else { scoreTxt = "I couldn't hear enough to score it."; setT(scoreTxt, v.words.map(w => w.p).join(' ')); }
     }
     let q = null;
-    if (live && SRC) {
+    if (live && SRC && S.set.voiceAns !== false) {
       await say(`${scoreTxt} Good, or again?`);
       if (!CAR || !CAR.on) break;
       const a = await Promise.race([listenCommand(5500), new Promise(res => { CAR.answer = res; })]);
       CAR.answer = null;
+      if (CAR && CAR.on) await settle();
       if (a === 'stop') break;
       q = a;
     } else {
@@ -1450,6 +1508,86 @@ function carStop() {
   try { speechSynthesis.cancel(); } catch (e) { }
   try { TTS && TTS.stop(); } catch (e) { }
   CAR = null; const b = $('#cgo'); if (b) b.textContent = 'Start'; const st = $('#cst'); if (st) st.textContent = 'Stopped';
+  const sg = $('#scgo'); if (sg) sg.disabled = false;
+}
+
+// ---------- sound check ----------
+// Plays each kind of sound the app makes, one at a time, so you can tell which ones reach the car's speakers.
+let CHECK = null;
+function playPcm(x, sr) {
+  const ctx = ac(); if (!ctx || !x || !x.length) return Promise.resolve();
+  let pk = 0; for (let i = 0; i < x.length; i++) { const a = Math.abs(x[i]); if (a > pk) pk = a; }
+  return new Promise(res => {
+    const b = ctx.createBuffer(1, x.length, sr); b.getChannelData(0).set(x);
+    const src = ctx.createBufferSource(), g = ctx.createGain(); src.buffer = b; g.gain.value = pk > 0 ? Math.min(10, 0.8 / pk) : 1;
+    src.connect(g); g.connect(ctx.destination); src.onended = res; src.start(); setTimeout(res, x.length / sr * 1000 + 600);
+  });
+}
+function loudness(x, sr) {
+  // The loudest stretch of a twentieth of a second, so a few words in a quiet recording still count.
+  const w = Math.max(1, Math.round(sr / 20)); let best = 0;
+  for (let i = 0; i + w <= x.length; i += w) { let s = 0; for (let j = i; j < i + w; j++) s += x[j] * x[j]; best = Math.max(best, Math.sqrt(s / w)); }
+  return best;
+}
+async function soundCheck() {
+  if (CAR || CHECK) return;
+  CHECK = { on: true }; ac();
+  const go = $('#scgo'), list = $('#sc'), sum = $('#scsum'), cg = $('#cgo');
+  if (go) go.textContent = 'Stop'; if (cg) cg.disabled = true; if (sum) sum.innerHTML = '';
+  const names = ['The app\'s voice', 'Rabbi Fessel\'s recording', 'Two beeps', 'The microphone records you', 'The app plays back what it heard', 'You answer out loud'];
+  if (list) { list.hidden = false; list.innerHTML = names.map((n, i) => `<li id="sc${i}">${n} <span class="muted"></span></li>`).join(''); }
+  const mark = (i, t) => { const li = $('#sc' + i); if (li) { li.querySelector('span').textContent = t ? '— ' + t : ''; li.style.fontWeight = t === 'now' ? '700' : ''; } };
+  const live = () => CHECK && CHECK.on;
+  const res = {};
+  try {
+    mark(0, 'now'); await say('Sound check. Step 1. This is the app\'s voice.'); mark(0, 'done'); if (!live()) return;
+    mark(1, 'now');
+    const a = [1, 2, 3, 4, 5, 6, 7].find(x => BLOB[x] && ALI[x] && ALI[x].some(vi => segOf(vi)));
+    const first = a ? ALI[a].find(vi => segOf(vi)) : null;
+    if (first !== undefined && first !== null) { await say('Step 2. Rabbi Fessel.'); const sg = segOf(first); await playRange(sg.a, sg.t0, Math.min(sg.t1, sg.t0 + 5), 1); mark(1, 'done'); }
+    else { await say('Step 2 skipped. No recording is loaded yet.'); mark(1, 'skipped, no recording loaded yet'); }
+    if (!live()) return;
+    mark(2, 'now'); await say('Step 3. Two beeps.'); await beep(880); await sleep(300); await beep(880); mark(2, 'done'); if (!live()) return;
+    if (!LIVE) { [3, 4, 5].forEach(i => mark(i, 'skipped, this view can\'t use the microphone')); }
+    else {
+      mark(3, 'now'); await say('Step 4. After the beep, say a few words. Anything at all.');
+      if (!live()) return;
+      if (!(await micOpen())) { mark(3, 'the phone would not open the microphone'); res.mic = 'none'; }
+      else {
+        res.label = MIC.label; res.liveOk = await micLive();
+        await beep(880); const rec = await micRecord(4); await beep(560, 0.18); micClose();
+        res.rec = rec; res.level = rec ? loudness(rec.x, rec.sr) : 0;
+        mark(3, res.level < 0.0005 ? 'the microphone heard nothing' : res.level < 0.01 ? 'recorded, but very quietly' : 'recorded');
+        await settle();
+      }
+      if (!live()) return;
+      mark(4, 'now');
+      if (res.rec && res.level >= 0.0005) { await say('Step 5. Here is what the microphone heard.'); await playPcm(res.rec.x, res.rec.sr); mark(4, 'done'); }
+      else { await say('Step 5 skipped. The microphone did not pick anything up.'); mark(4, 'skipped, nothing was recorded'); }
+      if (!live()) return;
+      mark(5, 'now');
+      if (SRC) {
+        await say('Step 6. Say the word, good.');
+        const ans = await listenCommand(6000); await settle();
+        res.ans = ans === 2; mark(5, res.ans ? 'heard you' : 'didn\'t catch it');
+        await say(res.ans ? 'I heard you.' : 'I didn\'t catch that.');
+      } else mark(5, 'skipped, this browser can\'t listen for words');
+    }
+    if (live()) await say('Sound check finished.');
+  } finally {
+    micClose();
+    const done = !!CHECK; CHECK = null;
+    if (go) go.textContent = 'Run sound check'; if (cg) cg.disabled = false;
+    if (done && sum && LIVE) {
+      sum.innerHTML = `<div class="note"><p style="margin-top:0"><b>What the phone reported</b></p><ul class="how">
+        <li>Microphone used: ${esc(res.label || (MICDEV.phoneLabel || 'the phone\'s standard one'))}</li>
+        <li>Microphones it can see: ${esc(MICDEV.labels.join(', ') || 'none named')}</li>
+        <li>Bluetooth microphone connected: ${MICDEV.bt ? 'yes' : 'not that the phone shows'}</li>
+        ${res.level !== undefined ? `<li>Recording level: ${res.level < 0.0005 ? 'silent' : res.level < 0.01 ? 'very quiet' : 'good'}</li>` : ''}
+        ${res.ans !== undefined ? `<li>Spoken answer: ${res.ans ? 'heard' : 'not heard'}</li>` : ''}
+      </ul><p style="margin-bottom:0">Tell Claude which step numbers you heard through the car's speakers, and send a screenshot of this box.</p></div>`;
+    }
+  }
 }
 
 // ---------- routing ----------
