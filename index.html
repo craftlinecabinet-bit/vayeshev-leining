@@ -47,7 +47,7 @@ main{max-width:760px;margin:0 auto}
 .band{padding:18px max(4vw,14px) 40px}
 h2{font-size:clamp(22px,4.5vw,30px);line-height:1.1;margin:.3em 0 .4em;text-wrap:balance}
 h3{font-size:18px;margin:1.6em 0 .5em}
-.muted{color:var(--muted)}
+.muted{color:var(--muted)}.okline{color:var(--ok);font-weight:600}
 .he{font-family:var(--he);font-size:25px;line-height:2;direction:rtl}
 .he.big{font-size:30px;line-height:2.1}.he.huge{font-size:42px;line-height:1.7}.he.inl{font-size:1.25em;line-height:1}
 .scroll{overflow-x:auto;scrollbar-width:none}
@@ -533,29 +533,46 @@ function pickCard(extra) {
 }
 
 // ---------- audio ----------
-let AC = null; const BUF = {}, BLOB = {};
+let AC = null; const BLOB = {}, PCM = {}; let pcmOrder = [];
 function ac() { if (!AC) { const C = window.AudioContext || window.webkitAudioContext; if (C) AC = new C(); } if (AC && AC.state === 'suspended') AC.resume().catch(() => { }); return AC; }
 const IDB = {
   open() { return new Promise((res, rej) => { try { const r = indexedDB.open('vayeshev-audio', 1); r.onupgradeneeded = () => r.result.createObjectStore('f'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); } catch (e) { rej(e); } }); },
   async put(k, v) { const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction('f', 'readwrite'); tx.objectStore('f').put(v, k); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); },
   async get(k) { const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction('f'); const r = tx.objectStore('f').get(k); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
 };
+async function decodeSmall(blob) {
+  // Decode at 16 kHz, one channel: about a tenth of the memory of full quality, plenty for lining up and tune checks.
+  const C = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const ab = await blob.arrayBuffer();
+  const oc = new C(1, 16000, 16000);
+  const buf = await new Promise((res, rej) => { const p = oc.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res, rej); });
+  const n = buf.length, ch = buf.numberOfChannels, x = new Float32Array(n);
+  for (let c = 0; c < ch; c++) { const d = buf.getChannelData(c); for (let i = 0; i < n; i++) x[i] += d[i] / ch; }
+  return { sampleRate: buf.sampleRate, duration: buf.duration, x, getChannelData: () => x };
+}
+async function pcm(a) {
+  if (PCM[a]) return PCM[a];
+  if (!BLOB[a]) return null;
+  const p = await decodeSmall(BLOB[a]);
+  PCM[a] = p; pcmOrder = pcmOrder.filter(k => k !== a); pcmOrder.push(a);
+  while (pcmOrder.length > 2) delete PCM[pcmOrder.shift()];
+  return p;
+}
 async function loadAudioFile(a, file) {
-  const ctx = ac(); if (!ctx) throw new Error('No audio on this device');
-  const ab = await file.arrayBuffer();
-  const buf = await ctx.decodeAudioData(ab.slice(0));
-  BUF[a] = buf; BLOB[a] = file;
+  const p = await decodeSmall(file);
+  const marks = autoSync(p, ALI[a]);
+  BLOB[a] = file; if (ELS[a]) { try { URL.revokeObjectURL(ELS[a].src); } catch (e) { } delete ELS[a]; }
+  PCM[a] = p; pcmOrder = pcmOrder.filter(k => k !== a); pcmOrder.push(a); while (pcmOrder.length > 2) delete PCM[pcmOrder.shift()];
   try { await IDB.put('a' + a, file); } catch (e) { }
-  const marks = autoSync(buf, ALI[a]);
-  S.audio[a] = { marks, dur: buf.duration, name: file.name || 'recording', auto: true };
+  S.audio[a] = { marks, dur: p.duration, name: file.name || 'recording', auto: true };
   save();
 }
 async function restoreAudio() {
   for (const a of Object.keys(S.audio)) {
-    if (BUF[a]) continue;
-    try { const f = await IDB.get('a' + a); if (f) { const ctx = ac(); if (!ctx) return; BUF[a] = await ctx.decodeAudioData((await f.arrayBuffer()).slice(0)); BLOB[a] = f; } } catch (e) { }
+    if (BLOB[a]) continue;
+    try { const f = await IDB.get('a' + a); if (f) BLOB[a] = f; } catch (e) { }
   }
-  if (location.hash === '#audio' || location.hash === '#car') route();
+  if (['#audio', '#car', '#tikkun', '#practice', ''].includes(location.hash)) route();
 }
 function frameDb(buf, hop = 0.02) {
   const sr = buf.sampleRate, ch = buf.getChannelData(0), n = Math.floor(buf.duration / hop), out = new Float32Array(n), step = Math.round(sr * hop);
@@ -592,31 +609,36 @@ function autoSync(buf, vis) {
   return [T0, ...idx.map(j => Math.max(0, pauses[j].end - 0.06))];
 }
 function segOf(vi) {
-  const a = V[vi].a, au = S.audio[a]; if (!au || !BUF[a]) return null;
+  const a = V[vi].a, au = S.audio[a]; if (!au || !BLOB[a]) return null;
   const i = ALI[a].indexOf(vi); const t0 = au.marks[i]; const t1 = i + 1 < au.marks.length ? au.marks[i + 1] : au.dur;
   return { a, t0, t1: Math.max(t0 + 0.3, t1) };
 }
-let playing = null;
-function stopAudio() { if (playing) { try { playing.stop(); } catch (e) { } playing = null; } if (EL) { EL.pause(); } }
-let EL = null;
+const ELS = {}; let curEl = null, curStop = null;
+function el(a) {
+  if (!ELS[a]) { const e = new Audio(); e.preload = 'auto'; e.preservesPitch = true; e.mozPreservesPitch = true; e.webkitPreservesPitch = true; e.src = URL.createObjectURL(BLOB[a]); ELS[a] = e; }
+  return ELS[a];
+}
+function stopAudio() { if (curStop) curStop(); }
 function playRange(a, t0, t1, rate = 1) {
   stopAudio();
   return new Promise(res => {
-    if (rate !== 1 && BLOB[a]) {
-      if (!EL) { EL = new Audio(); EL.preservesPitch = true; EL.webkitPreservesPitch = true; }
-      if (EL._a !== a) { if (EL.src) URL.revokeObjectURL(EL.src); EL.src = URL.createObjectURL(BLOB[a]); EL._a = a; }
-      EL.playbackRate = rate; EL.currentTime = t0;
-      const tick = () => { if (EL.paused) return res(); if (EL.currentTime >= t1) { EL.pause(); return res(); } requestAnimationFrame(tick); };
-      EL.play().then(() => requestAnimationFrame(tick)).catch(() => res());
-      return;
-    }
-    const ctx = ac(), buf = BUF[a]; if (!ctx || !buf) return res();
-    const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
-    src.onended = () => { if (playing === src) playing = null; res(); };
-    playing = src; src.start(0, t0, Math.max(0.1, t1 - t0));
+    if (!BLOB[a]) return res(false);
+    const ctx = ac();
+    const e = el(a); curEl = e; let done = false, timer = null;
+    const fin = ok => { if (done) return; done = true; clearInterval(timer); try { e.pause(); } catch (x) { } e.muted = false; if (curEl === e) { curEl = null; curStop = null; } res(ok); };
+    curStop = () => fin(false);
+    e.playbackRate = rate; e.muted = true;
+    const seek = () => { try { e.currentTime = t0; } catch (x) { } };
+    e.addEventListener('seeked', () => { e.muted = false; }, { once: true });
+    setTimeout(() => { e.muted = false; }, 600);
+    if (e.readyState >= 1) seek(); else e.addEventListener('loadedmetadata', seek, { once: true });
+    const p = e.play();
+    const watch = () => { timer = setInterval(() => { if (done) return; if (e.ended || (e.currentTime >= t1 && !e.seeking)) fin(true); }, 40); };
+    if (p && p.then) p.then(watch).catch(() => { toast('The phone blocked the sound. Tap the play button again, and check that the media volume is up.'); fin(false); });
+    else watch();
   });
 }
-function playVerse(vi, rate) { const s = segOf(vi); if (!s) return Promise.resolve(false); return playRange(s.a, s.t0, s.t1, rate || S.set.speed).then(() => true); }
+function playVerse(vi, rate) { const s = segOf(vi); if (!s) { toast('No recording is loaded for this aliyah yet. See the Audio tab.'); return Promise.resolve(false); } return playRange(s.a, s.t0, s.t1, rate || S.set.speed); }
 function beep(f = 880, d = 0.14) { const ctx = ac(); if (!ctx) return Promise.resolve(); return new Promise(res => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = f; g.gain.setValueAtTime(0.0001, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + d); o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + d + 0.02); o.onended = res; }); }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -672,7 +694,7 @@ function dtw(a, b) {
   const avg = D[I(n, m)] / Math.max(1, steps);
   return { score: Math.max(0, Math.min(100, Math.round(100 - 30 * (avg - 0.3)))), avg, path: path.reverse() };
 }
-function refSamples(vi) { const s = segOf(vi); if (!s) return null; const buf = BUF[s.a], sr = buf.sampleRate; return { x: buf.getChannelData(0).subarray(Math.floor(s.t0 * sr), Math.floor(s.t1 * sr)), sr }; }
+async function refSamples(vi) { const s = segOf(vi); if (!s) return null; const p = await pcm(s.a); if (!p) return null; const sr = p.sampleRate; return { x: p.x.subarray(Math.floor(s.t0 * sr), Math.floor(s.t1 * sr)), sr }; }
 function contourSvg(ref, mine) {
   const W = 600, H = 120, all = ref.concat(mine || []), lo = Math.min(-7, ...all), hi = Math.max(7, ...all);
   const pts = (arr, n) => arr.map((y, i) => `${(i / Math.max(1, (n || arr.length) - 1) * W).toFixed(1)},${(H - (y - lo) / (hi - lo) * H).toFixed(1)}`).join(' ');
@@ -710,7 +732,7 @@ function micRecord(seconds, onLevel) {
     function finish() { if (done) return; done = true; clearTimeout(t); try { proc.disconnect(); src.disconnect(); } catch (e) { } const len = chunks.reduce((a, c) => a + c.length, 0), x = new Float32Array(len); let o = 0; chunks.forEach(c => { x.set(c, o); o += c.length; }); res({ x, sr: ctx.sampleRate }); }
   });
 }
-function tuneScore(vi, mine) { const r = refSamples(vi); if (!r || !mine) return null; const A = semis(pitchTrack(r.x, r.sr)), B = semis(pitchTrack(mine.x, mine.sr)); if (A.length < 8 || B.length < 8) return { score: null, A, B }; const d = dtw(A, B); const Bal = A.map(() => null); d.path.forEach(([i, j]) => { Bal[i] = B[j]; }); return { score: d.score, A, B: Bal.map((y, i) => y === null ? A[i] : y) }; }
+async function tuneScore(vi, mine) { const r = await refSamples(vi); if (!r || !mine) return null; const A = semis(pitchTrack(r.x, r.sr)), B = semis(pitchTrack(mine.x, mine.sr)); if (A.length < 8 || B.length < 8) return { score: null, A, B }; const d = dtw(A, B); const Bal = A.map(() => null); d.path.forEach(([i, j]) => { Bal[i] = B[j]; }); return { score: d.score, A, B: Bal.map((y, i) => y === null ? A[i] : y) }; }
 
 // ---------- rendering helpers ----------
 function heWord(w, mode) { return mode === 'scroll' ? w.s : mode === 'notrop' ? w.n : mode === 'novowel' ? w.m : w.p; }
@@ -975,7 +997,7 @@ function cardRead(id) {
 }
 async function tuneCheck(vi, out) {
   out.innerHTML = '<p class="muted">Preparing…</p>';
-  const r = refSamples(vi); if (!r) { out.innerHTML = ''; return; }
+  const r = await refSamples(vi); if (!r) { out.innerHTML = ''; return; }
   const live = await micOpen();
   if (live) {
     const len = Math.min(40, (segOf(vi).t1 - segOf(vi).t0) * 1.4 + 1);
@@ -988,8 +1010,9 @@ async function tuneCheck(vi, out) {
   out.innerHTML = `<p class="muted">This view can't use the microphone. Record yourself singing just this pasuk with your phone's voice recorder, then load it here.</p><label class="btn file">Load my recording<input type="file" accept="audio/*" id="myrec" hidden></label>`;
   $('#myrec').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const b = await ac().decodeAudioData((await f.arrayBuffer()).slice(0)); showTune(vi, { x: b.getChannelData(0), sr: b.sampleRate }, out); } catch (err) { out.innerHTML = '<p class="muted">That file could not be read.</p>'; } };
 }
-function showTune(vi, mine, out) {
-  const t = tuneScore(vi, mine);
+async function showTune(vi, mine, out) {
+  out.innerHTML = '<p class="muted">Comparing…</p>';
+  const t = await tuneScore(vi, mine);
   if (!t || t.score === null) { out.innerHTML = '<p class="muted">Not enough singing was picked up to compare. Try again a little louder, closer to the phone.</p>'; return t; }
   const good = t.score >= 65;
   out.innerHTML = `<div class="fb ${good ? 'ok' : 'bad'}"><div class="verdict">Tune match ${t.score}</div><div>${t.score >= 80 ? 'Your melody follows his closely.' : good ? 'Close. A few spots rise or fall differently from his.' : 'The shape of your melody drifts from his. Listen again and copy the rises and falls.'}</div>${contourSvg(t.A, t.B)}<p class="muted"><span class="key ref"></span> Rabbi Fessel &nbsp; <span class="key mine"></span> you. The match compares the shape of the melody, so your own key is fine.</p></div>`;
@@ -1137,13 +1160,13 @@ function renderTrop() {
 // ---------- audio view ----------
 function renderAudio() {
   const rows = D.meta.aliyos.map(x => {
-    const a = x.n, au = S.audio[a], loaded = !!BUF[a];
+    const a = x.n, au = S.audio[a], loaded = !!(au && BLOB[a]);
     const link = FESSEL[a] ? `<a href="https://www.torahdownloads.com/shiur-${FESSEL[a]}.html" target="_blank" rel="noopener">Rabbi Fessel's ${esc(x.name)}</a>` : '<span class="muted">No Fessel recording for the Chanukah maftir. Record your rav or a friend, or yourself once you have it right.</span>';
     return `<div class="arow"><div><b>${esc(x.name)}</b> <span class="muted">${esc(x.from)}–${esc(x.to)}</span><div>${link}</div>
-      <div class="muted">${au ? (loaded ? `Loaded · ${Math.round(au.dur)} s · ${au.auto ? 'synced automatically' : 'synced by you'}` : 'Saved earlier; load the file again on this device') : 'Not loaded'}</div></div>
+      <div class="${loaded ? 'okline' : 'muted'}">${loaded ? `✓ Loaded in the app · ${Math.floor(au.dur / 60)}:${String(Math.round(au.dur % 60)).padStart(2, '0')} · ${ALI[a].length} pesukim lined up` : au ? 'Loaded on another device; load it here too' : 'Not loaded in the app yet'}</div></div>
       <div class="acts"><label class="btn file">${au ? 'Replace' : 'Load file'}<input type="file" accept="audio/*" data-load="${a}" hidden></label>${loaded ? `<button class="btn" data-check="${a}">Check sync</button>` : ''}</div></div>`;
   }).join('');
-  const have = [1, 2, 3, 4, 5, 6, 7].filter(a => BUF[a]).length;
+  const have = [1, 2, 3, 4, 5, 6, 7].filter(a => S.audio[a] && BLOB[a]).length;
   $('#view').innerHTML = `<section class="band">
     <h2>Rabbi Fessel's leining: the answer key</h2>
     <p>The app compares your leining against his recording. You don't have to listen to it; it just has to be loaded once on this phone.</p>
@@ -1153,6 +1176,7 @@ function renderAudio() {
     <div class="card" id="manual" style="margin-top:12px" ${LIVE ? 'hidden' : ''}><h3 style="margin-top:0">${LIVE ? 'Backup: download them yourself' : 'Load the recordings'}</h3>
       <ol class="how"><li>Tap each aliyah's link below. On his page, tap <b>Download</b>. Do all seven; they go to your phone's Downloads.</li><li>Come back here and tap <b>Load several at once</b>. Pick all seven files together. The app works out which is which.</li></ol>
       <div class="row"><label class="btn primary file">Load several at once<input type="file" accept="audio/*" multiple id="loadmany" hidden></label></div><div id="manystat"></div></div>
+    <div class="card" style="margin-top:12px"><h3 style="margin-top:0">Test the sound</h3><p class="muted">${have ? `${have} of 7 aliyos are loaded in the app.` : 'Nothing is loaded in the app yet. Downloading the files to the phone is step one; step two is Load several at once, above.'}</p><div class="row"><button class="btn" id="testsnd" ${have ? '' : 'disabled'}>▶ Play the first pasuk</button><button class="btn" id="teststop">Stop</button></div><p class="muted">If you hear nothing, turn up the phone's media volume (press volume up while the sound plays) and make sure Bluetooth isn't sending it to another speaker.</p></div>
     <p class="muted">Once loaded, every pasuk gets a ▶ button, the practice can score your tune, and Car mode comes alive.</p>
     <div class="alist">${rows}</div>
     <div id="syncer"></div>
@@ -1165,6 +1189,8 @@ function renderAudio() {
     try { await loadAudioFile(a, f); toast('Loaded and synced'); renderAudio(); syncer(a); $('#syncer').scrollIntoView({ behavior: 'smooth' }); } catch (err) { toast('That file could not be read as audio'); }
   });
   $$('[data-check]').forEach(b => b.onclick = () => syncer(+b.dataset.check));
+  const ts = $('#testsnd'); if (ts) ts.onclick = () => { const a = [1, 2, 3, 4, 5, 6, 7].find(x => S.audio[x] && BLOB[x]); if (a) playVerse(ALI[a][0], 1); };
+  $('#teststop').onclick = () => stopAudio();
   const ga = $('#getall');
   if (ga) ga.onclick = async () => {
     ga.disabled = true; const st = $('#getstat'); let ok = 0, blocked = false;
@@ -1197,17 +1223,19 @@ function renderAudio() {
   $$('[data-rate]').forEach(b => b.onclick = () => { S.set.speed = +b.dataset.rate; save(); renderAudio(); });
 }
 function syncer(a) {
-  const au = S.audio[a], vis = ALI[a]; if (!au || !BUF[a]) return;
+  const au = S.audio[a], vis = ALI[a]; if (!au || !BLOB[a]) return;
   const el = $('#syncer');
   el.innerHTML = `<div class="card"><h3>${esc(aliName(a))}: where each pasuk starts</h3><p class="muted">Tap ▶ to hear a pasuk from its start. If it begins early or late, nudge it.</p>
     <div class="slist">${vis.map((vi, i) => `<div class="srow"><button class="btn sm" data-sp="${i}">▶ ${esc(V[vi].ref)}</button><span class="he" dir="rtl" lang="he">${esc(V[vi].words.slice(0, 3).map(w => w.n).join(' '))}</span><span class="tm">${au.marks[i].toFixed(1)} s</span><span><button class="btn sm" data-nd="${i}" data-by="-0.3">−</button><button class="btn sm" data-nd="${i}" data-by="0.3">+</button></span></div>`).join('')}</div>
     <div class="row"><button class="btn" id="redo">Re-run the automatic sync</button><button class="btn" id="tap">Mark them myself by tapping</button></div><div id="tapper"></div></div>`;
   $$('[data-sp]', el).forEach(b => b.onclick = () => { const i = +b.dataset.sp; playVerse(vis[i], 1); });
   $$('[data-nd]', el).forEach(b => b.onclick = () => { const i = +b.dataset.nd; au.marks[i] = Math.max(0, au.marks[i] + +b.dataset.by); au.auto = false; save(); syncer(a); playVerse(vis[i], 1); });
-  $('#redo').onclick = () => { au.marks = autoSync(BUF[a], vis); au.auto = true; save(); syncer(a); };
+  $('#redo').onclick = async () => { const p = await pcm(a); if (!p) return; au.marks = autoSync(p, vis); au.auto = true; save(); syncer(a); };
   $('#tap').onclick = () => {
-    const marks = []; const ctx = ac(); stopAudio();
-    const src = ctx.createBufferSource(); src.buffer = BUF[a]; src.connect(ctx.destination); const t0 = ctx.currentTime; src.start(); playing = src;
+    const marks = []; stopAudio(); ac();
+    const e = el(a); e.playbackRate = 1; e.muted = false; try { e.currentTime = 0; } catch (x) { } e.play().catch(() => { });
+    const ctx = { get currentTime() { return e.currentTime; } }; const t0 = 0;
+    curStop = () => { try { e.pause(); } catch (x) { } curStop = null; };
     const show = () => { const k = marks.length; $('#tapper').innerHTML = `<div class="tapbox"><p>${k < vis.length ? `Tap when <b>${esc(V[vis[k]].ref)}</b> begins:` : 'All marked.'}</p>${k < vis.length ? `<div class="he big" dir="rtl" lang="he">${esc(V[vis[k]].words.slice(0, 4).map(w => w.n).join(' '))}</div><button class="btn primary big" id="tapnow">This pasuk starts now</button>` : ''}<button class="btn" id="tapstop">${k < vis.length ? 'Cancel' : 'Save'}</button></div>`; const tn = $('#tapnow'); if (tn) tn.onclick = () => { marks.push(Math.max(0, ctx.currentTime - t0 - 0.25)); show(); }; $('#tapstop').onclick = () => { stopAudio(); if (marks.length === vis.length) { au.marks = marks; au.auto = false; save(); } syncer(a); }; };
     show();
   };
@@ -1293,7 +1321,7 @@ async function carStart() {
     await beep(560, 0.18);
     let auto = null, scoreTxt = '';
     if (mine) {
-      const t = tuneScore(vi, mine);
+      const t = await tuneScore(vi, mine);
       if (t && t.score !== null) { auto = t.score >= 65 ? 2 : 0; scoreTxt = `Tune ${t.score}. ${t.score >= 80 ? 'Very close.' : t.score >= 65 ? 'Close.' : 'That drifted.'}`; }
       else scoreTxt = "I couldn't hear enough to score it.";
       setT(scoreTxt, v.words.map(w => w.p).join(' '));
